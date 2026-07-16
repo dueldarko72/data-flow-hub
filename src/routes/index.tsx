@@ -328,6 +328,3 @@ function Landing() {
     </div>
   );
 }
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _guard = Check; // keep import used
