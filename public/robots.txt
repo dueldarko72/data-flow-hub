@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /buy
+Disallow: /orders
+Disallow: /profile
+Disallow: /notifications
+Disallow: /support
