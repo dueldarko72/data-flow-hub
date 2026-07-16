@@ -6,7 +6,6 @@ import {
   Clock,
   Sparkles,
   ArrowRight,
-  Check,
   Menu,
   X,
   Sun,
