@@ -38,11 +38,8 @@ import { loadBundles, upsertBundle, deleteBundle } from "@/lib/admin-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_admin/bundles")({
-  component: AdminBundles;
-} as never);
-
-// Fix TS: use assertion via object instead of chained (createFileRoute expects object)
-// Above assertion is a workaround — provide correct one below.
+  component: AdminBundles,
+});
 
 function AdminBundles() {
   const [bundles, setBundles] = useState<Bundle[]>([]);
