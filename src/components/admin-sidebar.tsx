@@ -1,16 +1,16 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
-  ShoppingCart,
+  Package,
+  Users,
   Receipt,
-  User,
-  Bell,
-  LifeBuoy,
+  Megaphone,
+  Settings,
   LogOut,
-  Wifi,
+  Shield,
   Sun,
   Moon,
-  Shield,
+  ArrowLeft,
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,44 +28,42 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
-import { useNavigate } from "@tanstack/react-router";
-import { isAdminEmail } from "@/lib/admin-data";
 
 const items = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Buy Data", url: "/buy", icon: ShoppingCart },
-  { title: "Orders", url: "/orders", icon: Receipt },
-  { title: "Notifications", url: "/notifications", icon: Bell },
-  { title: "Profile", url: "/profile", icon: User },
-  { title: "Support", url: "/support", icon: LifeBuoy },
+  { title: "Overview", url: "/admin", icon: LayoutDashboard },
+  { title: "Orders", url: "/admin/orders", icon: Receipt },
+  { title: "Bundles", url: "/admin/bundles", icon: Package },
+  { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Broadcast", url: "/admin/broadcast", icon: Megaphone },
+  { title: "Settings", url: "/admin/settings", icon: Settings },
 ] as const;
 
-export function AppSidebar() {
+export function AdminSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const { user, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
-  const isAdmin = isAdminEmail(user?.email);
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
-        <Link to="/dashboard" className="flex items-center gap-2 px-2 py-3">
+        <Link to="/admin" className="flex items-center gap-2 px-2 py-3">
           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg gradient-gold">
-            <Wifi className="h-4 w-4 text-primary-foreground" />
+            <Shield className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-display text-lg font-bold group-data-[collapsible=icon]:hidden">
-            DataHub
-          </span>
+          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <div className="font-display text-sm font-bold leading-tight">DataHub</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Admin</div>
+          </div>
         </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>Manage</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
-                const active = path === item.url;
+                const active = item.url === "/admin" ? path === "/admin" : path.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
@@ -80,23 +78,21 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Admin</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Admin dashboard">
-                    <Link to="/admin" className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      <span>Admin dashboard</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        <SidebarGroup>
+          <SidebarGroupLabel>Customer</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Customer app">
+                  <Link to="/dashboard" className="flex items-center gap-2">
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>Back to app</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:hidden">
