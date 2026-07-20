@@ -10,6 +10,7 @@ import {
   Wifi,
   Sun,
   Moon,
+  Shield,
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,6 +29,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { useNavigate } from "@tanstack/react-router";
+import { isAdminEmail } from "@/lib/admin-data";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -43,6 +45,7 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
+  const isAdmin = isAdminEmail(user?.email);
 
   return (
     <Sidebar collapsible="icon">
