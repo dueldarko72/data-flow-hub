@@ -18,7 +18,7 @@ import { formatGHS } from "@/lib/mock-data";
 import { loadUsers, toggleUserStatus, type AdminUser } from "@/lib/admin-data";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_admin/users")({
+export const Route = createFileRoute("/admin/users")({
   component: AdminUsers,
 });
 

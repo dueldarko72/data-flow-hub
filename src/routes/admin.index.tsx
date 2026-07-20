@@ -18,7 +18,7 @@ import { loadOrders, formatGHS, type Order } from "@/lib/mock-data";
 import { computeAnalytics, loadUsers, type AdminUser } from "@/lib/admin-data";
 import { StatusBadge } from "@/components/status-badge";
 
-export const Route = createFileRoute("/_admin/")({
+export const Route = createFileRoute("/admin/")({
   component: AdminOverview,
 });
 

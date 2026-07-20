@@ -7,7 +7,7 @@ import { isAdminEmail } from "@/lib/admin-data";
 import { Loader2, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/_admin")({
+export const Route = createFileRoute("/admin")({
   ssr: false,
   component: AdminLayout,
 });

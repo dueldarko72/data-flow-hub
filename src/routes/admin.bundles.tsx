@@ -37,7 +37,7 @@ import { formatGHS, type Bundle } from "@/lib/mock-data";
 import { loadBundles, upsertBundle, deleteBundle } from "@/lib/admin-data";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_admin/bundles")({
+export const Route = createFileRoute("/admin/bundles")({
   component: AdminBundles,
 });
 

@@ -30,7 +30,7 @@ import { loadOrders, formatGHS, type Order, type OrderStatus } from "@/lib/mock-
 import { updateOrderStatus } from "@/lib/admin-data";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_admin/orders")({
+export const Route = createFileRoute("/admin/orders")({
   component: AdminOrders,
 });
 

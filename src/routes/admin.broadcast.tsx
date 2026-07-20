@@ -11,7 +11,7 @@ import { loadNotifications, type AppNotification } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
-export const Route = createFileRoute("/_admin/broadcast")({
+export const Route = createFileRoute("/admin/broadcast")({
   component: BroadcastPage,
 });
 

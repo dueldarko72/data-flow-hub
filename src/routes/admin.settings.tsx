@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { loadSettings, saveSettings, type AdminSettings } from "@/lib/admin-data";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_admin/settings")({
+export const Route = createFileRoute("/admin/settings")({
   component: SettingsPage,
 });
 
