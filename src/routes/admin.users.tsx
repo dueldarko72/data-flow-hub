@@ -245,7 +245,7 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
   return (
     <>
       <Dialog open={!!user && !editing} onOpenChange={(o) => !o && onClose()}>
-        <DialogContent className="glass border-0 sm:max-w-3xl">
+        <DialogContent className="glass border-0 w-[calc(100vw-1.5rem)] sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Bundles for {user.name}</DialogTitle>
             <DialogDescription>
@@ -268,7 +268,8 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
           </div>
 
           <div className="max-h-[50vh] overflow-auto rounded-lg border border-border/50">
-            <Table>
+            <Table className="min-w-[560px]">
+
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>

@@ -69,13 +69,13 @@ function AdminOrders() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold">Orders</h1>
+        <h1 className="font-display text-2xl font-bold sm:text-3xl">Orders</h1>
         <p className="mt-1 text-sm text-muted-foreground">Approve, fulfill, or refund customer orders.</p>
       </div>
 
       <Card className="glass border-0 p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-64 flex-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative min-w-0 flex-1 sm:min-w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by ref, phone or bundle"
@@ -85,7 +85,7 @@ function AdminOrders() {
             />
           </div>
           <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus | "all")}>
-            <SelectTrigger className="w-44">
+            <SelectTrigger className="w-full sm:w-44">
               <Filter className="mr-1 h-3.5 w-3.5" />
               <SelectValue />
             </SelectTrigger>
@@ -102,7 +102,8 @@ function AdminOrders() {
       </Card>
 
       <Card className="glass border-0 overflow-hidden">
-        <Table>
+        <Table className="min-w-[820px]">
+
           <TableHeader>
             <TableRow>
               <TableHead>Reference</TableHead>
@@ -124,13 +125,14 @@ function AdminOrders() {
             ) : (
               filtered.map((o) => (
                 <TableRow key={o.id}>
-                  <TableCell className="font-mono text-xs">{o.reference}</TableCell>
-                  <TableCell className="text-sm font-medium">{o.bundleName}</TableCell>
-                  <TableCell className="text-sm">{o.recipient}</TableCell>
-                  <TableCell className="text-sm font-semibold">{formatGHS(o.amount)}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="whitespace-nowrap font-mono text-xs">{o.reference}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm font-medium">{o.bundleName}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">{o.recipient}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm font-semibold">{formatGHS(o.amount)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                     {new Date(o.createdAt).toLocaleString()}
                   </TableCell>
+
                   <TableCell>
                     <StatusBadge status={o.status} />
                   </TableCell>
