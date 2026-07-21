@@ -30,7 +30,7 @@ function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold">Settings</h1>
+        <h1 className="font-display text-2xl font-bold sm:text-3xl">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">Store branding, support contacts and operations.</p>
       </div>
 

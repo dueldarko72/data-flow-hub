@@ -36,11 +36,12 @@ function AdminOverview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold">Overview</h1>
+        <h1 className="font-display text-2xl font-bold sm:text-3xl">Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">Real-time performance across the marketplace.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+
         <Stat label="Revenue" value={formatGHS(a.revenue)} sub={`${a.completed} completed`} icon={TrendingUp} />
         <Stat label="Orders" value={String(orders.length)} sub="All time" icon={ShoppingBag} />
         <Stat label="Data sold" value={`${a.gbSold} GB`} sub="Completed" icon={Database} />
@@ -108,7 +109,7 @@ function AdminOverview() {
       </div>
 
       <Card className="glass border-0">
-        <div className="flex items-center justify-between p-6 pb-3">
+        <div className="flex items-center justify-between p-4 pb-3 sm:p-6 sm:pb-3">
           <h2 className="text-lg font-semibold">Recent orders</h2>
           <Button asChild variant="ghost" size="sm">
             <Link to="/admin/orders">
@@ -116,20 +117,20 @@ function AdminOverview() {
             </Link>
           </Button>
         </div>
-        <div className="px-6 pb-6">
+        <div className="px-4 pb-4 sm:px-6 sm:pb-6">
           {orders.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">No orders yet.</div>
           ) : (
             <div className="divide-y divide-border/50">
               {orders.slice(0, 6).map((o) => (
-                <div key={o.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <div className="text-sm font-medium">{o.bundleName} → {o.recipient}</div>
-                    <div className="text-xs text-muted-foreground">
+                <div key={o.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{o.bundleName} → {o.recipient}</div>
+                    <div className="truncate text-xs text-muted-foreground">
                       {o.reference} • {new Date(o.createdAt).toLocaleString()}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 sm:shrink-0">
                     <div className="text-sm font-semibold">{formatGHS(o.amount)}</div>
                     <StatusBadge status={o.status} />
                   </div>
@@ -139,6 +140,7 @@ function AdminOverview() {
           )}
         </div>
       </Card>
+
     </div>
   );
 }

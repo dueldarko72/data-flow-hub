@@ -36,15 +36,17 @@ function AdminLayout() {
       <div className="flex min-h-screen w-full bg-background">
         <AdminSidebar />
         <SidebarInset className="flex flex-1 flex-col">
-          <header className="glass sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/50 px-4">
+          <header className="glass sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border/50 px-3 sm:gap-3 sm:px-4">
             <SidebarTrigger />
             <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
-              <Shield className="h-3 w-3" /> Admin Mode
+              <Shield className="h-3 w-3" /> <span>Admin</span><span className="hidden sm:inline"> Mode</span>
             </Badge>
             <div className="flex-1" />
-            <div className="text-xs text-muted-foreground">Signed in as {user.email}</div>
+            <div className="hidden truncate text-xs text-muted-foreground sm:block max-w-[40vw]">
+              Signed in as {user.email}
+            </div>
           </header>
-          <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
             <Outlet />
           </main>
         </SidebarInset>

@@ -88,17 +88,18 @@ function AdminBundles() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Bundles</h1>
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-bold sm:text-3xl">Bundles</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage bundle catalogue, pricing and validity.</p>
         </div>
         <Button onClick={startCreate} className="gradient-gold text-primary-foreground hover:opacity-90">
-          <Plus className="mr-1 h-4 w-4" /> New bundle
+          <Plus className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">New bundle</span><span className="sm:hidden">New</span>
         </Button>
       </div>
 
       <Card className="glass border-0 overflow-hidden">
-        <Table>
+        <Table className="min-w-[760px]">
+
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -113,13 +114,14 @@ function AdminBundles() {
           <TableBody>
             {bundles.map((b) => (
               <TableRow key={b.id}>
-                <TableCell className="font-medium">{b.name}</TableCell>
+                <TableCell className="whitespace-nowrap font-medium">{b.name}</TableCell>
                 <TableCell>
                   <Badge variant="outline">{b.network}</Badge>
                 </TableCell>
-                <TableCell>{b.gb} GB</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{b.validity}</TableCell>
-                <TableCell className="font-semibold">{formatGHS(b.price)}</TableCell>
+                <TableCell className="whitespace-nowrap">{b.gb} GB</TableCell>
+                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{b.validity}</TableCell>
+                <TableCell className="whitespace-nowrap font-semibold">{formatGHS(b.price)}</TableCell>
+
                 <TableCell>
                   {b.popular ? (
                     <Badge className="gradient-gold text-primary-foreground">
