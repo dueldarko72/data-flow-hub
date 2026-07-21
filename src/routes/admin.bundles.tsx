@@ -93,7 +93,7 @@ function AdminBundles() {
           <p className="mt-1 text-sm text-muted-foreground">Manage bundle catalogue, pricing and validity.</p>
         </div>
         <Button onClick={startCreate} className="gradient-gold text-primary-foreground hover:opacity-90">
-          <Plus className="mr-1 h-4 w-4" /> <span className="hidden xs:inline">New bundle</span><span className="xs:hidden">New</span>
+          <Plus className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">New bundle</span><span className="sm:hidden">New</span>
         </Button>
       </div>
 

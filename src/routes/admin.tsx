@@ -39,7 +39,7 @@ function AdminLayout() {
           <header className="glass sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border/50 px-3 sm:gap-3 sm:px-4">
             <SidebarTrigger />
             <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
-              <Shield className="h-3 w-3" /> <span className="hidden xs:inline">Admin</span><span className="hidden sm:inline"> Mode</span>
+              <Shield className="h-3 w-3" /> <span>Admin</span><span className="hidden sm:inline"> Mode</span>
             </Badge>
             <div className="flex-1" />
             <div className="hidden truncate text-xs text-muted-foreground sm:block max-w-[40vw]">
