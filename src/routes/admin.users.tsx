@@ -76,8 +76,10 @@ function AdminUsers() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-bold">Users</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Customer directory with lifetime spend and per-user bundle catalogues.</p>
+        <h1 className="font-display text-2xl font-bold sm:text-3xl">Users</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Customer directory with lifetime spend and per-user bundle catalogues.
+        </p>
       </div>
 
       <Card className="glass border-0 p-4">
@@ -93,7 +95,7 @@ function AdminUsers() {
       </Card>
 
       <Card className="glass border-0 overflow-hidden">
-        <Table>
+        <Table className="min-w-[760px]">
           <TableHeader>
             <TableRow>
               <TableHead>Customer</TableHead>
@@ -110,23 +112,23 @@ function AdminUsers() {
               <TableRow key={u.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-8 w-8 shrink-0">
                       <AvatarFallback className="gradient-gold text-xs font-bold text-primary-foreground">
                         {u.name.slice(0, 1)}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <div className="text-sm font-medium">{u.name}</div>
-                      <div className="text-xs text-muted-foreground">{u.email}</div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{u.name}</div>
+                      <div className="truncate text-xs text-muted-foreground">{u.email}</div>
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-sm">{u.phone ?? "—"}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">
+                <TableCell className="whitespace-nowrap text-sm">{u.phone ?? "—"}</TableCell>
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                   {new Date(u.createdAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell className="text-sm font-medium">{u.orders}</TableCell>
-                <TableCell className="text-sm font-semibold">{formatGHS(u.spent)}</TableCell>
+                <TableCell className="whitespace-nowrap text-sm font-semibold">{formatGHS(u.spent)}</TableCell>
                 <TableCell>
                   {u.status === "active" ? (
                     <Badge variant="outline" className="border-emerald-500/40 text-emerald-600">Active</Badge>
@@ -136,17 +138,25 @@ function AdminUsers() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                    <Button size="sm" variant="outline" onClick={() => setBundleUser(u)}>
-                      <Package className="mr-1 h-3.5 w-3.5" /> Bundles
+                    <Button size="sm" variant="outline" onClick={() => setBundleUser(u)} title="Manage bundles">
+                      <Package className="h-3.5 w-3.5 sm:mr-1" />
+                      <span className="hidden sm:inline">Bundles</span>
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => toggle(u.id)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => toggle(u.id)}
+                      title={u.status === "active" ? "Suspend" : "Reactivate"}
+                    >
                       {u.status === "active" ? (
                         <>
-                          <Ban className="mr-1 h-3.5 w-3.5" /> Suspend
+                          <Ban className="h-3.5 w-3.5 sm:mr-1" />
+                          <span className="hidden sm:inline">Suspend</span>
                         </>
                       ) : (
                         <>
-                          <CircleCheck className="mr-1 h-3.5 w-3.5" /> Reactivate
+                          <CircleCheck className="h-3.5 w-3.5 sm:mr-1" />
+                          <span className="hidden sm:inline">Reactivate</span>
                         </>
                       )}
                     </Button>
@@ -164,6 +174,7 @@ function AdminUsers() {
           </TableBody>
         </Table>
       </Card>
+
 
       <UserBundlesDialog
         user={bundleUser}
