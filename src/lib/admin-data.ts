@@ -88,6 +88,62 @@ export function toggleUserStatus(id: string) {
   saveUsers(u);
 }
 
+// ============ Per-user bundle catalogues ============
+const USER_BUNDLES_KEY = "datahub-user-bundles";
+
+type UserBundleMap = Record<string, Bundle[]>;
+
+function loadAllUserBundles(): UserBundleMap {
+  try {
+    const raw = localStorage.getItem(USER_BUNDLES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
+
+function saveAllUserBundles(m: UserBundleMap) {
+  try {
+    localStorage.setItem(USER_BUNDLES_KEY, JSON.stringify(m));
+  } catch {}
+}
+
+export function loadUserBundles(userId: string): Bundle[] {
+  const all = loadAllUserBundles();
+  if (all[userId]) return all[userId];
+  // default to a clone of the global catalogue
+  const clone = loadBundles().map((b) => ({ ...b }));
+  all[userId] = clone;
+  saveAllUserBundles(all);
+  return clone;
+}
+
+export function saveUserBundles(userId: string, bundles: Bundle[]) {
+  const all = loadAllUserBundles();
+  all[userId] = bundles;
+  saveAllUserBundles(all);
+}
+
+export function upsertUserBundle(userId: string, b: Bundle) {
+  const list = loadUserBundles(userId);
+  const i = list.findIndex((x) => x.id === b.id);
+  if (i >= 0) list[i] = b;
+  else list.unshift(b);
+  saveUserBundles(userId, list);
+}
+
+export function deleteUserBundle(userId: string, bundleId: string) {
+  saveUserBundles(
+    userId,
+    loadUserBundles(userId).filter((b) => b.id !== bundleId),
+  );
+}
+
+export function resetUserBundles(userId: string) {
+  const all = loadAllUserBundles();
+  delete all[userId];
+  saveAllUserBundles(all);
+}
+
 export interface AdminSettings {
   storeName: string;
   supportEmail: string;

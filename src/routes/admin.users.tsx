@@ -1,11 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Ban, CircleCheck } from "lucide-react";
+import { Search, Ban, CircleCheck, Package, Plus, Pencil, Trash2, Star, RotateCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -14,8 +34,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatGHS } from "@/lib/mock-data";
-import { loadUsers, toggleUserStatus, type AdminUser } from "@/lib/admin-data";
+import { formatGHS, type Bundle } from "@/lib/mock-data";
+import {
+  loadUsers,
+  toggleUserStatus,
+  loadUserBundles,
+  upsertUserBundle,
+  deleteUserBundle,
+  resetUserBundles,
+  type AdminUser,
+} from "@/lib/admin-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/users")({
@@ -25,6 +53,7 @@ export const Route = createFileRoute("/admin/users")({
 function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [q, setQ] = useState("");
+  const [bundleUser, setBundleUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     setUsers(loadUsers());
@@ -48,7 +77,7 @@ function AdminUsers() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-bold">Users</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Customer directory with lifetime spend.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Customer directory with lifetime spend and per-user bundle catalogues.</p>
       </div>
 
       <Card className="glass border-0 p-4">
@@ -106,17 +135,22 @@ function AdminUsers() {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="outline" onClick={() => toggle(u.id)}>
-                    {u.status === "active" ? (
-                      <>
-                        <Ban className="mr-1 h-3.5 w-3.5" /> Suspend
-                      </>
-                    ) : (
-                      <>
-                        <CircleCheck className="mr-1 h-3.5 w-3.5" /> Reactivate
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex justify-end gap-1">
+                    <Button size="sm" variant="outline" onClick={() => setBundleUser(u)}>
+                      <Package className="mr-1 h-3.5 w-3.5" /> Bundles
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => toggle(u.id)}>
+                      {u.status === "active" ? (
+                        <>
+                          <Ban className="mr-1 h-3.5 w-3.5" /> Suspend
+                        </>
+                      ) : (
+                        <>
+                          <CircleCheck className="mr-1 h-3.5 w-3.5" /> Reactivate
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -130,6 +164,249 @@ function AdminUsers() {
           </TableBody>
         </Table>
       </Card>
+
+      <UserBundlesDialog
+        user={bundleUser}
+        onClose={() => setBundleUser(null)}
+      />
+    </div>
+  );
+}
+
+function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose: () => void }) {
+  const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [editing, setEditing] = useState<Bundle | null>(null);
+  const [isNew, setIsNew] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  useEffect(() => {
+    if (user) setBundles(loadUserBundles(user.id));
+    else {
+      setBundles([]);
+      setEditing(null);
+    }
+  }, [user]);
+
+  if (!user) return null;
+
+  const startCreate = () => {
+    setEditing({
+      id: "b" + Math.random().toString(36).slice(2, 8),
+      network: "MTN",
+      name: "",
+      gb: 1,
+      price: 0,
+      validity: "24 hours",
+      popular: false,
+    });
+    setIsNew(true);
+  };
+
+  const save = () => {
+    if (!editing) return;
+    if (!editing.name.trim() || editing.price <= 0 || editing.gb <= 0) {
+      toast.error("Fill in all fields correctly");
+      return;
+    }
+    upsertUserBundle(user.id, editing);
+    setBundles(loadUserBundles(user.id));
+    setEditing(null);
+    setIsNew(false);
+    toast.success("Bundle saved for " + user.name);
+  };
+
+  const doDelete = () => {
+    if (!deleteId) return;
+    deleteUserBundle(user.id, deleteId);
+    setBundles(loadUserBundles(user.id));
+    setDeleteId(null);
+    toast.success("Bundle removed");
+  };
+
+  const doReset = () => {
+    resetUserBundles(user.id);
+    setBundles(loadUserBundles(user.id));
+    setConfirmReset(false);
+    toast.success("Catalogue reset to defaults");
+  };
+
+  return (
+    <>
+      <Dialog open={!!user && !editing} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="glass border-0 sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Bundles for {user.name}</DialogTitle>
+            <DialogDescription>
+              Manage this customer's personal bundle catalogue, pricing and validity. Changes apply only to <span className="font-medium">{user.email}</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-muted-foreground">
+              {bundles.length} bundle{bundles.length === 1 ? "" : "s"}
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setConfirmReset(true)}>
+                <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reset
+              </Button>
+              <Button size="sm" onClick={startCreate} className="gradient-gold text-primary-foreground hover:opacity-90">
+                <Plus className="mr-1 h-3.5 w-3.5" /> New bundle
+              </Button>
+            </div>
+          </div>
+
+          <div className="max-h-[50vh] overflow-auto rounded-lg border border-border/50">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Validity</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Featured</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bundles.map((b) => (
+                  <TableRow key={b.id}>
+                    <TableCell className="font-medium">{b.name}</TableCell>
+                    <TableCell>{b.gb} GB</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{b.validity}</TableCell>
+                    <TableCell className="font-semibold">{formatGHS(b.price)}</TableCell>
+                    <TableCell>
+                      {b.popular ? (
+                        <Badge className="gradient-gold text-primary-foreground">
+                          <Star className="mr-1 h-3 w-3" /> Popular
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => { setEditing(b); setIsNew(false); }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setDeleteId(b.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {bundles.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                      No bundles yet. Add one to start.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) { setEditing(null); setIsNew(false); } }}>
+        <DialogContent className="glass border-0 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isNew ? "New bundle" : "Edit bundle"} — {user.name}</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-3">
+              <Field label="Name">
+                <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Data (GB)">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={editing.gb}
+                    onChange={(e) => setEditing({ ...editing, gb: Number(e.target.value) })}
+                  />
+                </Field>
+                <Field label="Price (GHS)">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={editing.price}
+                    onChange={(e) => setEditing({ ...editing, price: Number(e.target.value) })}
+                  />
+                </Field>
+              </div>
+              <Field label="Validity">
+                <Input
+                  value={editing.validity}
+                  onChange={(e) => setEditing({ ...editing, validity: e.target.value })}
+                  placeholder="e.g. 30 days"
+                />
+              </Field>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 p-3">
+                <div>
+                  <div className="text-sm font-medium">Featured</div>
+                  <div className="text-xs text-muted-foreground">Highlight this bundle for the customer.</div>
+                </div>
+                <Switch
+                  checked={!!editing.popular}
+                  onCheckedChange={(v) => setEditing({ ...editing, popular: v })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditing(null); setIsNew(false); }}>Cancel</Button>
+            <Button onClick={save} className="gradient-gold text-primary-foreground">Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent className="glass border-0">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this bundle?</AlertDialogTitle>
+            <AlertDialogDescription>
+              It will no longer be available to {user.name}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doDelete} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
+        <AlertDialogContent className="glass border-0">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset catalogue?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This restores {user.name}'s bundle list to the global defaults. Custom prices will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doReset}>Reset</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      {children}
     </div>
   );
 }
