@@ -44,11 +44,13 @@ export const BUNDLES: Bundle[] = [
   { id: "b1", network: "MTN", name: "Starter 1GB", gb: 1, price: 6, validity: "24 hours" },
   { id: "b2", network: "MTN", name: "Daily 2GB", gb: 2, price: 11, validity: "24 hours" },
   { id: "b3", network: "MTN", name: "Weekly 5GB", gb: 5, price: 25, validity: "7 days", popular: true },
+  { id: "b9", network: "MTN", name: "Flash 3GB", gb: 3, price: 15, validity: "24 hours" },
   { id: "b4", network: "MTN", name: "Weekly 10GB", gb: 10, price: 45, validity: "7 days" },
   { id: "b5", network: "MTN", name: "Monthly 20GB", gb: 20, price: 85, validity: "30 days", popular: true },
   { id: "b6", network: "MTN", name: "Monthly 50GB", gb: 50, price: 190, validity: "30 days" },
   { id: "b7", network: "MTN", name: "Mega 100GB", gb: 100, price: 340, validity: "30 days" },
   { id: "b8", network: "MTN", name: "Pro 200GB", gb: 200, price: 620, validity: "60 days" },
+  { id: "b10", network: "MTN", name: "Ultra 300GB", gb: 300, price: 880, validity: "90 days" },
 ];
 
 const ORDERS_KEY = "datahub-orders";
