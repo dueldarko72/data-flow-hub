@@ -99,41 +99,105 @@ function Landing() {
         </div>
       </header>
 
+      {/* PRICING / BUNDLES — moved to top */}
+      <section id="pricing" className="mx-auto max-w-7xl px-4 pt-10 pb-16">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold sm:text-4xl">Straightforward pricing</h2>
+          <p className="mt-2 text-sm text-muted-foreground">The exact price you see. Never a cedi more.</p>
+        </div>
+
+        {/* Group 1: Instantly delivered — first 3 */}
+        <div className="mt-10">
+          <h3 className="text-center text-xl font-semibold text-gradient-gold">Instantly delivered</h3>
+          <div className="mt-6 flex flex-wrap justify-center gap-4">
+            {BUNDLES.slice(0, 3).map((b) => (
+              <Card
+                key={b.id}
+                className={`glass relative border-0 p-3 flex flex-col justify-between w-[3cm] h-[7cm] ${b.popular ? "ring-2 ring-primary" : ""}`}
+              >
+                {b.popular && (
+                  <span className="absolute right-1 top-1 rounded-full gradient-gold px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary-foreground">
+                    Popular
+                  </span>
+                )}
+                <div>
+                  <div className="text-[10px] font-medium text-muted-foreground">{b.network}</div>
+                  <div className="mt-1 font-display text-2xl font-bold leading-none">{b.gb}<span className="text-sm">GB</span></div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">{b.validity}</div>
+                </div>
+                <div className="text-lg font-bold text-gradient-gold">{formatGHS(b.price)}</div>
+                <Button asChild size="sm" className="w-full gradient-gold text-primary-foreground hover:opacity-90 text-xs h-8">
+                  <Link to="/auth" search={{ mode: "signup" }}>Buy</Link>
+                </Button>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Group 2: 1hr - 2hr delivery — next 5 */}
+        <div className="mt-10">
+          <h3 className="text-center text-xl font-semibold text-gradient-gold">1hr – 2hr delivery</h3>
+          <div className="mt-6 flex flex-wrap justify-center gap-4">
+            {BUNDLES.slice(3, 8).map((b) => (
+              <Card
+                key={b.id}
+                className={`glass relative border-0 p-3 flex flex-col justify-between w-[3cm] h-[7cm] ${b.popular ? "ring-2 ring-primary" : ""}`}
+              >
+                {b.popular && (
+                  <span className="absolute right-1 top-1 rounded-full gradient-gold px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary-foreground">
+                    Popular
+                  </span>
+                )}
+                <div>
+                  <div className="text-[10px] font-medium text-muted-foreground">{b.network}</div>
+                  <div className="mt-1 font-display text-2xl font-bold leading-none">{b.gb}<span className="text-sm">GB</span></div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">{b.validity}</div>
+                </div>
+                <div className="text-lg font-bold text-gradient-gold">{formatGHS(b.price)}</div>
+                <Button asChild size="sm" className="w-full gradient-gold text-primary-foreground hover:opacity-90 text-xs h-8">
+                  <Link to="/auth" search={{ mode: "signup" }}>Buy</Link>
+                </Button>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* HERO */}
       <section className="hero-bg relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-4 pt-20 pb-28 text-center sm:pt-28">
-          <div className="glass mx-auto mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
+        <div className="mx-auto max-w-7xl px-4 pt-10 pb-16 text-center">
+          <div className="glass mx-auto mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px]">
+            <Sparkles className="h-3 w-3 text-primary" />
             Ghana's fastest MTN data marketplace
           </div>
-          <h1 className="mx-auto max-w-4xl text-5xl font-bold leading-[1.05] tracking-tight sm:text-7xl">
+          <h1 className="mx-auto max-w-3xl text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
             Instant data bundles. <span className="text-gradient-gold">Zero hassle.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
+          <p className="mx-auto mt-3 max-w-xl text-xs text-muted-foreground sm:text-sm">
             Buy MTN Ghana data bundles in seconds. No calls, no waiting, no middlemen — pay securely
             and your bundle lands on any number, instantly.
           </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button asChild size="lg" className="gradient-gold text-primary-foreground hover:opacity-90 glow">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <Button asChild size="sm" className="gradient-gold text-primary-foreground hover:opacity-90 glow">
               <Link to="/auth" search={{ mode: "signup" }}>
-                Buy data now <ArrowRight className="ml-1 h-4 w-4" />
+                Buy data now <ArrowRight className="ml-1 h-3 w-3" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="sm" variant="outline">
               <a href="#pricing">View bundles</a>
             </Button>
           </div>
 
           {/* Trust bar */}
-          <div className="mx-auto mt-16 grid max-w-3xl grid-cols-3 gap-4">
+          <div className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-3">
             {[
               { k: "10k+", v: "Bundles delivered" },
               { k: "99.9%", v: "Success rate" },
               { k: "< 30s", v: "Avg delivery" },
             ].map((s) => (
-              <div key={s.v} className="glass rounded-2xl p-4">
-                <div className="font-display text-2xl font-bold text-gradient-gold">{s.k}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{s.v}</div>
+              <div key={s.v} className="glass rounded-xl p-3">
+                <div className="font-display text-lg font-bold text-gradient-gold">{s.k}</div>
+                <div className="mt-0.5 text-[10px] text-muted-foreground">{s.v}</div>
               </div>
             ))}
           </div>
@@ -141,25 +205,25 @@ function Landing() {
       </section>
 
       {/* FEATURES */}
-      <section id="features" className="mx-auto max-w-7xl px-4 py-24">
+      <section id="features" className="mx-auto max-w-7xl px-4 py-16">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-4xl font-bold sm:text-5xl">Built for speed and trust</h2>
-          <p className="mt-4 text-muted-foreground">
+          <h2 className="text-2xl font-bold sm:text-3xl">Built for speed and trust</h2>
+          <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
             Every bundle is delivered by an automated pipeline built to be fast, transparent, and reliable.
           </p>
         </div>
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
           {[
             { icon: Zap, title: "Instant delivery", desc: "Bundles arrive in under 30 seconds on average." },
             { icon: ShieldCheck, title: "Secure payments", desc: "MTN MoMo, cards, and bank — encrypted end-to-end." },
             { icon: Clock, title: "Real-time tracking", desc: "Watch your order move from pending to completed live." },
           ].map((f) => (
-            <Card key={f.title} className="glass border-0 p-6 transition hover:-translate-y-1">
-              <div className="grid h-12 w-12 place-items-center rounded-xl gradient-gold">
-                <f.icon className="h-6 w-6 text-primary-foreground" />
+            <Card key={f.title} className="glass border-0 p-5 transition hover:-translate-y-1">
+              <div className="grid h-10 w-10 place-items-center rounded-xl gradient-gold">
+                <f.icon className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h3 className="mt-5 text-xl font-semibold">{f.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{f.desc}</p>
+              <h3 className="mt-4 text-base font-semibold">{f.title}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{f.desc}</p>
             </Card>
           ))}
         </div>
@@ -167,23 +231,23 @@ function Landing() {
 
       {/* HOW IT WORKS */}
       <section id="how" className="relative">
-        <div className="mx-auto max-w-7xl px-4 py-24">
+        <div className="mx-auto max-w-7xl px-4 py-16">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-4xl font-bold sm:text-5xl">Three steps. Done.</h2>
-            <p className="mt-4 text-muted-foreground">
+            <h2 className="text-2xl font-bold sm:text-3xl">Three steps. Done.</h2>
+            <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
               From account to activated data in less than a minute.
             </p>
           </div>
-          <div className="mt-14 grid gap-6 md:grid-cols-3">
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
             {[
               { n: "01", t: "Create your account", d: "Sign up with your email or phone." },
               { n: "02", t: "Pick a bundle", d: "Choose network, size, and recipient." },
               { n: "03", t: "Pay & receive", d: "Complete payment — bundle lands instantly." },
             ].map((s) => (
-              <div key={s.n} className="glass rounded-2xl p-6">
-                <div className="font-display text-5xl font-bold text-gradient-gold">{s.n}</div>
-                <h3 className="mt-4 text-xl font-semibold">{s.t}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{s.d}</p>
+              <div key={s.n} className="glass rounded-2xl p-5">
+                <div className="font-display text-3xl font-bold text-gradient-gold">{s.n}</div>
+                <h3 className="mt-3 text-base font-semibold">{s.t}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{s.d}</p>
               </div>
             ))}
           </div>
@@ -191,30 +255,30 @@ function Landing() {
       </section>
 
       {/* TESTIMONIALS */}
-      <section className="mx-auto max-w-7xl px-4 py-24">
+      <section className="mx-auto max-w-7xl px-4 py-16">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-4xl font-bold sm:text-5xl">Loved across Ghana</h2>
+          <h2 className="text-2xl font-bold sm:text-3xl">Loved across Ghana</h2>
         </div>
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
           {[
             { n: "Ama K.", r: "Accra", q: "Bought 20GB at midnight and it dropped in seconds. This is the way." },
             { n: "Kwame O.", r: "Kumasi", q: "Cheapest MTN bundles I've found. The dashboard is beautiful too." },
             { n: "Efua M.", r: "Takoradi", q: "I run a small shop — I resell for my customers. DataHub never fails me." },
           ].map((t) => (
-            <Card key={t.n} className="glass border-0 p-6">
+            <Card key={t.n} className="glass border-0 p-5">
               <div className="flex gap-0.5">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                  <Star key={i} className="h-3 w-3 fill-primary text-primary" />
                 ))}
               </div>
-              <p className="mt-4 text-sm leading-relaxed">"{t.q}"</p>
-              <div className="mt-6 flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-full gradient-gold text-sm font-bold text-primary-foreground">
+              <p className="mt-3 text-xs leading-relaxed">"{t.q}"</p>
+              <div className="mt-4 flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-full gradient-gold text-xs font-bold text-primary-foreground">
                   {t.n[0]}
                 </div>
                 <div>
-                  <div className="text-sm font-semibold">{t.n}</div>
-                  <div className="text-xs text-muted-foreground">{t.r}</div>
+                  <div className="text-xs font-semibold">{t.n}</div>
+                  <div className="text-[10px] text-muted-foreground">{t.r}</div>
                 </div>
               </div>
             </Card>
@@ -222,34 +286,6 @@ function Landing() {
         </div>
       </section>
 
-      {/* PRICING / BUNDLES */}
-      <section id="pricing" className="mx-auto max-w-7xl px-4 py-24">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-4xl font-bold sm:text-5xl">Straightforward pricing</h2>
-          <p className="mt-4 text-muted-foreground">The exact price you see. Never a cedi more.</p>
-        </div>
-        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {BUNDLES.slice(0, 8).map((b) => (
-            <Card
-              key={b.id}
-              className={`glass relative border-0 p-6 transition hover:-translate-y-1 ${b.popular ? "ring-2 ring-primary" : ""}`}
-            >
-              {b.popular && (
-                <span className="absolute right-4 top-4 rounded-full gradient-gold px-2 py-0.5 text-[10px] font-semibold uppercase text-primary-foreground">
-                  Popular
-                </span>
-              )}
-              <div className="text-xs font-medium text-muted-foreground">{b.network}</div>
-              <div className="mt-2 font-display text-4xl font-bold">{b.gb}<span className="text-xl">GB</span></div>
-              <div className="mt-1 text-sm text-muted-foreground">{b.validity}</div>
-              <div className="mt-6 text-3xl font-bold text-gradient-gold">{formatGHS(b.price)}</div>
-              <Button asChild className="mt-6 w-full gradient-gold text-primary-foreground hover:opacity-90">
-                <Link to="/auth" search={{ mode: "signup" }}>Buy now</Link>
-              </Button>
-            </Card>
-          ))}
-        </div>
-      </section>
 
       {/* FAQ */}
       <section id="faq" className="mx-auto max-w-3xl px-4 py-24">
