@@ -44,7 +44,54 @@ export const Route = createFileRoute("/")({
 function Landing() {
   const [menu, setMenu] = useState(false);
   const { theme, toggle } = useTheme();
-  const { user } = useAuth();
+  const { user, signIn, signUp } = useAuth();
+  const navigate = useNavigate();
+  const [buyOpen, setBuyOpen] = useState(false);
+  const [mode, setMode] = useState<"signup" | "login">("signup");
+  const [selectedBundle, setSelectedBundle] = useState<typeof BUNDLES[number] | null>(null);
+  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [submitting, setSubmitting] = useState(false);
+
+  const openBuy = (b: typeof BUNDLES[number]) => {
+    if (user) {
+      navigate({ to: "/buy" });
+      return;
+    }
+    setSelectedBundle(b);
+    setMode("signup");
+    setForm({ name: "", email: "", phone: "" });
+    setBuyOpen(true);
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.email || !form.phone) return;
+    setSubmitting(true);
+    try {
+      await signUp(form.name, form.email, form.phone, "password");
+      toast.success("Account created — continue to checkout");
+      setBuyOpen(false);
+      navigate({ to: "/buy" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.phone) return;
+    setSubmitting(true);
+    try {
+      const syntheticEmail = `${form.name.toLowerCase().replace(/\s+/g, ".")}@datahub.gh`;
+      await signIn(syntheticEmail, "password");
+      toast.success("Welcome back");
+      setBuyOpen(false);
+      navigate({ to: "/buy" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
