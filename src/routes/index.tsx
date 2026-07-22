@@ -162,11 +162,11 @@ function Landing() {
           <p className="mt-2 text-sm text-muted-foreground">The exact price you see. Never a cedi more.</p>
         </div>
 
-        {/* Group 1: Instantly delivered — first 3 */}
+        {/* Group 1: Instantly delivered — first 4 */}
         <div className="mt-10">
           <h3 className="text-center text-xl font-semibold text-gradient-gold">Instantly delivered</h3>
           <div className="mt-6 flex flex-wrap justify-center gap-4">
-            {BUNDLES.slice(0, 3).map((b) => (
+            {BUNDLES.slice(0, 4).map((b) => (
               <Card
                 key={b.id}
                 className={`glass relative border-0 p-3 flex flex-col justify-between w-[3cm] h-[7cm] ${b.popular ? "ring-2 ring-primary" : ""}`}
@@ -182,19 +182,23 @@ function Landing() {
                   <div className="mt-1 text-[10px] text-muted-foreground">{b.validity}</div>
                 </div>
                 <div className="text-lg font-bold text-gradient-gold">{formatGHS(b.price)}</div>
-                <Button asChild size="sm" className="w-full gradient-gold text-primary-foreground hover:opacity-90 text-xs h-8">
-                  <Link to="/auth" search={{ mode: "signup" }}>Buy</Link>
+                <Button
+                  size="sm"
+                  onClick={() => openBuy(b)}
+                  className="w-full gradient-gold text-primary-foreground hover:opacity-90 text-xs h-8"
+                >
+                  Buy
                 </Button>
               </Card>
             ))}
           </div>
         </div>
 
-        {/* Group 2: 1hr - 2hr delivery — next 5 */}
+        {/* Group 2: 1hr - 2hr delivery — remaining 6 */}
         <div className="mt-10">
           <h3 className="text-center text-xl font-semibold text-gradient-gold">1hr – 2hr delivery</h3>
           <div className="mt-6 flex flex-wrap justify-center gap-4">
-            {BUNDLES.slice(3, 8).map((b) => (
+            {BUNDLES.slice(4).map((b) => (
               <Card
                 key={b.id}
                 className={`glass relative border-0 p-3 flex flex-col justify-between w-[3cm] h-[7cm] ${b.popular ? "ring-2 ring-primary" : ""}`}
@@ -210,14 +214,80 @@ function Landing() {
                   <div className="mt-1 text-[10px] text-muted-foreground">{b.validity}</div>
                 </div>
                 <div className="text-lg font-bold text-gradient-gold">{formatGHS(b.price)}</div>
-                <Button asChild size="sm" className="w-full gradient-gold text-primary-foreground hover:opacity-90 text-xs h-8">
-                  <Link to="/auth" search={{ mode: "signup" }}>Buy</Link>
+                <Button
+                  size="sm"
+                  onClick={() => openBuy(b)}
+                  className="w-full gradient-gold text-primary-foreground hover:opacity-90 text-xs h-8"
+                >
+                  Buy
                 </Button>
               </Card>
             ))}
           </div>
         </div>
       </section>
+
+      {/* Buy auth dialog */}
+      <Dialog open={buyOpen} onOpenChange={setBuyOpen}>
+        <DialogContent className="glass border-0 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {mode === "signup" ? "Create your account" : "Log in to continue"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedBundle
+                ? `${selectedBundle.gb}GB • ${formatGHS(selectedBundle.price)} • ${selectedBundle.validity}`
+                : "Choose an option to proceed."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {mode === "signup" ? (
+            <form onSubmit={handleSignup} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="su-name">User name</Label>
+                <Input id="su-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="su-email">Email</Label>
+                <Input id="su-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="su-phone">Phone number</Label>
+                <Input id="su-phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+              </div>
+              <Button type="submit" disabled={submitting} className="w-full gradient-gold text-primary-foreground hover:opacity-90">
+                {submitting ? "Please wait..." : "Log in"}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Already a customer?{" "}
+                <button type="button" onClick={() => setMode("login")} className="font-semibold text-primary hover:underline">
+                  Log in
+                </button>
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="li-name">Username</Label>
+                <Input id="li-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="li-phone">Registered phone number</Label>
+                <Input id="li-phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+              </div>
+              <Button type="submit" disabled={submitting} className="w-full gradient-gold text-primary-foreground hover:opacity-90">
+                {submitting ? "Please wait..." : "Log in"}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                New customer?{" "}
+                <button type="button" onClick={() => setMode("signup")} className="font-semibold text-primary hover:underline">
+                  Sign up
+                </button>
+              </p>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* HERO */}
       <section className="hero-bg relative overflow-hidden">
