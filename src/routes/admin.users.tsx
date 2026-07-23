@@ -34,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatGHS, type Bundle } from "@/lib/mock-data";
+import { formatGHS, loadOrders, type Bundle, type Order } from "@/lib/mock-data";
 import {
   loadUsers,
   toggleUserStatus,
