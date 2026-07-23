@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Ban, CircleCheck, Package, Plus, Pencil, Trash2, Star, RotateCcw } from "lucide-react";
+import { Search, Ban, CircleCheck, Package, Plus, Pencil, Trash2, Star, RotateCcw, History } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
