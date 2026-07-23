@@ -89,7 +89,7 @@ export function AdminSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Customer app">
-                  <Link to="/dashboard" className="flex items-center gap-2">
+                  <Link to="/dashboard" onClick={closeIfMobile} className="flex items-center gap-2">
                     <ArrowLeft className="h-4 w-4" />
                     <span>Back to app</span>
                   </Link>
