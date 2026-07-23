@@ -44,6 +44,10 @@ export function AdminSidebar() {
   const { user, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const closeIfMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
     <Sidebar collapsible="icon">
