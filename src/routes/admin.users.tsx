@@ -54,6 +54,7 @@ function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [q, setQ] = useState("");
   const [bundleUser, setBundleUser] = useState<AdminUser | null>(null);
+  const [historyUser, setHistoryUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     setUsers(loadUsers());
