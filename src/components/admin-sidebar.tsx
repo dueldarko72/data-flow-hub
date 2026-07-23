@@ -23,6 +23,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -43,6 +44,10 @@ export function AdminSidebar() {
   const { user, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const closeIfMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -67,7 +72,7 @@ export function AdminSidebar() {
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-                      <Link to={item.url} className="flex items-center gap-2">
+                      <Link to={item.url} onClick={closeIfMobile} className="flex items-center gap-2">
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
@@ -84,7 +89,7 @@ export function AdminSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Customer app">
-                  <Link to="/dashboard" className="flex items-center gap-2">
+                  <Link to="/dashboard" onClick={closeIfMobile} className="flex items-center gap-2">
                     <ArrowLeft className="h-4 w-4" />
                     <span>Back to app</span>
                   </Link>
