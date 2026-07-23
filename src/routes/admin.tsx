@@ -18,6 +18,7 @@ function AdminLayout() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const isAdmin = isAdminEmail(user?.email);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -33,6 +34,18 @@ function AdminLayout() {
     );
   }
 
+  const customerUrl = typeof window !== "undefined" ? window.location.origin + "/" : "/";
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(customerUrl);
+      setCopied(true);
+      toast.success("Customer link copied");
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error("Copy failed");
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -44,9 +57,20 @@ function AdminLayout() {
               <Shield className="h-3 w-3" /> <span>Admin</span><span className="hidden sm:inline"> Mode</span>
             </Badge>
             <div className="flex-1" />
-            <div className="hidden truncate text-xs text-muted-foreground sm:block max-w-[40vw]">
-              Signed in as {user.email}
+            <div className="hidden min-w-0 max-w-[38vw] items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs md:flex">
+              <span className="text-muted-foreground">Customer link:</span>
+              <span className="truncate font-mono">{customerUrl}</span>
             </div>
+            <Button size="sm" variant="outline" onClick={copyLink} className="h-8 gap-1">
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{copied ? "Copied" : "Copy customer link"}</span>
+            </Button>
+            <Button size="sm" variant="ghost" asChild className="h-8 gap-1">
+              <a href={customerUrl} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Open</span>
+              </a>
+            </Button>
           </header>
           <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
             <Outlet />
