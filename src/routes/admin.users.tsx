@@ -185,7 +185,94 @@ function AdminUsers() {
         user={bundleUser}
         onClose={() => setBundleUser(null)}
       />
+
+      <UserHistoryDialog
+        user={historyUser}
+        onClose={() => setHistoryUser(null)}
+      />
     </div>
+  );
+}
+
+function UserHistoryDialog({ user, onClose }: { user: AdminUser | null; onClose: () => void }) {
+  const orders = useMemo<Order[]>(() => {
+    if (!user) return [];
+    const all = loadOrders();
+    const phone = (user.phone ?? "").replace(/\s+/g, "");
+    return all.filter((o) => o.recipient.replace(/\s+/g, "") === phone);
+  }, [user]);
+
+  if (!user) return null;
+
+  const total = orders.reduce((s, o) => s + (o.status === "completed" ? o.amount : 0), 0);
+  const gb = orders.reduce((s, o) => s + (o.status === "completed" ? o.gb : 0), 0);
+
+  return (
+    <Dialog open={!!user} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="glass border-0 w-[calc(100vw-1.5rem)] sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Order history — {user.name}</DialogTitle>
+          <DialogDescription>
+            All orders placed to <span className="font-medium">{user.phone ?? "—"}</span>.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg border border-border/50 p-2">
+            <div className="text-xs text-muted-foreground">Orders</div>
+            <div className="text-lg font-bold">{orders.length}</div>
+          </div>
+          <div className="rounded-lg border border-border/50 p-2">
+            <div className="text-xs text-muted-foreground">Data (GB)</div>
+            <div className="text-lg font-bold">{gb}</div>
+          </div>
+          <div className="rounded-lg border border-border/50 p-2">
+            <div className="text-xs text-muted-foreground">Spent</div>
+            <div className="text-lg font-bold">{formatGHS(total)}</div>
+          </div>
+        </div>
+
+        <div className="max-h-[50vh] overflow-auto rounded-lg border border-border/50">
+          <Table className="min-w-[560px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Reference</TableHead>
+                <TableHead>Bundle</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.map((o) => (
+                <TableRow key={o.id}>
+                  <TableCell className="font-mono text-xs">{o.reference}</TableCell>
+                  <TableCell className="text-sm">{o.bundleName}</TableCell>
+                  <TableCell className="font-semibold">{formatGHS(o.amount)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize">{o.status}</Badge>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                    {new Date(o.createdAt).toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {orders.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                    No orders yet for this customer.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
