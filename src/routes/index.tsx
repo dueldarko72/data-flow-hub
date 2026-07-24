@@ -150,11 +150,7 @@ function Landing() {
               <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
-              {user ? (
-                <Button asChild size="sm" className="gradient-gold text-primary-foreground hover:opacity-90">
-                  <Link to="/dashboard">Dashboard</Link>
-                </Button>
-              ) : (
+              {!user && (
                 <>
                   <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
                     <Link to="/auth" search={{ mode: "signin" }}>Sign in</Link>
