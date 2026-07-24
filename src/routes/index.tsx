@@ -51,6 +51,27 @@ function Landing() {
   const [selectedBundle, setSelectedBundle] = useState<typeof BUNDLES[number] | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [activeBar, setActiveBar] = useState<null | "fast" | "slow">(null);
+  const [pendingBar, setPendingBar] = useState<null | "fast" | "slow">(null);
+
+  const revealBundles = (bar: "fast" | "slow") => {
+    setActiveBar(bar);
+    setTimeout(() => {
+      document.getElementById("bundle-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
+
+  const handleBarTap = (bar: "fast" | "slow") => {
+    if (bar === "fast" && !user) {
+      setPendingBar("fast");
+      setSelectedBundle(null);
+      setMode("signup");
+      setForm({ name: "", email: "", phone: "" });
+      setBuyOpen(true);
+      return;
+    }
+    revealBundles(bar);
+  };
 
   const openBuy = (b: typeof BUNDLES[number]) => {
     if (user) {
