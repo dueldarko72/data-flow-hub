@@ -62,10 +62,14 @@ function Landing() {
   };
 
   const handleBarTap = (bar: "fast" | "slow") => {
-    if (bar === "fast" && !user) {
+    if (bar === "fast") {
+      if (user) {
+        revealBundles("fast");
+        return;
+      }
       setPendingBar("fast");
       setSelectedBundle(null);
-      setMode("signup");
+      setMode("login");
       setForm({ name: "", email: "", phone: "" });
       setBuyOpen(true);
       return;
@@ -74,6 +78,9 @@ function Landing() {
   };
 
   const openBuy = (b: typeof BUNDLES[number]) => {
+    try {
+      sessionStorage.setItem("datahub-selected-bundle", JSON.stringify(b));
+    } catch {}
     if (user) {
       navigate({ to: "/buy" });
       return;
