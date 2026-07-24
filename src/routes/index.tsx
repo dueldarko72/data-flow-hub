@@ -84,11 +84,6 @@ function Landing() {
     setBuyOpen(true);
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name || !form.email || !form.phone) return;
-    setSubmitting(true);
-    try {
   const afterAuth = () => {
     setBuyOpen(false);
     if (selectedBundle) {
