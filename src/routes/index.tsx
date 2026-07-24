@@ -89,10 +89,29 @@ function Landing() {
     if (!form.name || !form.email || !form.phone) return;
     setSubmitting(true);
     try {
-      await signUp(form.name, form.email, form.phone, "password");
-      toast.success("Account created — continue to checkout");
-      setBuyOpen(false);
+  const afterAuth = () => {
+    setBuyOpen(false);
+    if (selectedBundle) {
       navigate({ to: "/buy" });
+      return;
+    }
+    if (pendingBar) {
+      const bar = pendingBar;
+      setPendingBar(null);
+      revealBundles(bar);
+      return;
+    }
+    navigate({ to: "/buy" });
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.email || !form.phone) return;
+    setSubmitting(true);
+    try {
+      await signUp(form.name, form.email, form.phone, "password");
+      toast.success("Account created");
+      afterAuth();
     } finally {
       setSubmitting(false);
     }
@@ -106,8 +125,7 @@ function Landing() {
       const syntheticEmail = `${form.name.toLowerCase().replace(/\s+/g, ".")}@datahub.gh`;
       await signIn(syntheticEmail, "password");
       toast.success("Welcome back");
-      setBuyOpen(false);
-      navigate({ to: "/buy" });
+      afterAuth();
     } finally {
       setSubmitting(false);
     }
