@@ -185,76 +185,76 @@ function Landing() {
         </div>
       </header>
 
-      {/* PRICING / BUNDLES — moved to top */}
+      {/* PRICING / BUNDLES */}
       <section id="pricing" className="mx-auto max-w-7xl px-4 pt-10 pb-16">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">Straightforward pricing</h2>
-          <p className="mt-2 text-sm text-muted-foreground">The exact price you see. Never a cedi more.</p>
+          <h2 className="text-3xl font-bold sm:text-4xl">Buy Data Bundle Here</h2>
         </div>
 
-        {/* Group 1: Instantly delivered — first 4 */}
-        <div className="mt-10">
-          <h3 className="text-center text-xl font-semibold text-gradient-gold">Instantly delivered</h3>
-          <div className="mt-6 flex flex-wrap justify-center gap-4">
-            {BUNDLES.slice(0, 4).map((b) => (
-              <Card
-                key={b.id}
-                className={`glass relative border-0 p-3 flex flex-col justify-between w-[3cm] h-[7cm] ${b.popular ? "ring-2 ring-primary" : ""}`}
-              >
-                {b.popular && (
-                  <span className="absolute right-1 top-1 rounded-full gradient-gold px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary-foreground">
-                    Popular
-                  </span>
-                )}
-                <div>
-                  <div className="text-[10px] font-medium text-muted-foreground">{b.network}</div>
-                  <div className="mt-1 font-display text-2xl font-bold leading-none">{b.gb}<span className="text-sm">GB</span></div>
-                  <div className="mt-1 text-[10px] text-muted-foreground">{b.validity}</div>
-                </div>
-                <div className="text-lg font-bold text-gradient-gold">{formatGHS(b.price)}</div>
-                <Button
-                  size="sm"
-                  onClick={() => openBuy(b)}
-                  className="w-full gradient-gold text-primary-foreground hover:opacity-90 text-xs h-8"
-                >
-                  Buy
-                </Button>
-              </Card>
-            ))}
+        {/* Golden vertical card with two black bars */}
+        <div className="mt-8 flex justify-center">
+          <div
+            className="relative flex flex-col items-stretch justify-center gap-4 rounded-2xl gradient-gold p-4 glow"
+            style={{ width: "5cm", height: "8cm" }}
+          >
+            <div className="text-center text-[10px] font-semibold uppercase tracking-wider text-primary-foreground/80">
+              DataHub • MTN
+            </div>
+            <button
+              type="button"
+              onClick={() => handleBarTap("fast")}
+              className={`w-full rounded-lg bg-black px-3 py-3 text-sm font-semibold text-white transition hover:bg-black/85 ${activeBar === "fast" ? "ring-2 ring-white/60" : ""}`}
+            >
+              Fast delivery
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBarTap("slow")}
+              className={`w-full rounded-lg bg-black px-3 py-3 text-sm font-semibold text-white transition hover:bg-black/85 ${activeBar === "slow" ? "ring-2 ring-white/60" : ""}`}
+            >
+              1hr – 2hr delivery
+            </button>
+            <div className="text-center text-[9px] text-primary-foreground/70">
+              Tap a bar to view bundles
+            </div>
           </div>
         </div>
 
-        {/* Group 2: 1hr - 2hr delivery — remaining 6 */}
-        <div className="mt-10">
-          <h3 className="text-center text-xl font-semibold text-gradient-gold">1hr – 2hr delivery</h3>
-          <div className="mt-6 flex flex-wrap justify-center gap-4">
-            {BUNDLES.slice(4).map((b) => (
-              <Card
-                key={b.id}
-                className={`glass relative border-0 p-3 flex flex-col justify-between w-[3cm] h-[7cm] ${b.popular ? "ring-2 ring-primary" : ""}`}
-              >
-                {b.popular && (
-                  <span className="absolute right-1 top-1 rounded-full gradient-gold px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary-foreground">
-                    Popular
-                  </span>
-                )}
-                <div>
-                  <div className="text-[10px] font-medium text-muted-foreground">{b.network}</div>
-                  <div className="mt-1 font-display text-2xl font-bold leading-none">{b.gb}<span className="text-sm">GB</span></div>
-                  <div className="mt-1 text-[10px] text-muted-foreground">{b.validity}</div>
-                </div>
-                <div className="text-lg font-bold text-gradient-gold">{formatGHS(b.price)}</div>
-                <Button
-                  size="sm"
-                  onClick={() => openBuy(b)}
-                  className="w-full gradient-gold text-primary-foreground hover:opacity-90 text-xs h-8"
+        {/* Bundles list — appears after a bar is chosen */}
+        {activeBar && (
+          <div id="bundle-list" className="mt-10">
+            <h3 className="text-center text-xl font-semibold text-gradient-gold">
+              {activeBar === "fast" ? "Fast delivery" : "1hr – 2hr delivery"}
+            </h3>
+            <div className="mt-6 flex flex-wrap justify-center gap-4">
+              {(activeBar === "fast" ? BUNDLES.slice(0, 3) : BUNDLES.slice(3, 9)).map((b) => (
+                <Card
+                  key={b.id}
+                  className={`glass relative border-0 p-3 flex flex-col justify-between w-[3cm] h-[7cm] ${b.popular ? "ring-2 ring-primary" : ""}`}
                 >
-                  Buy
-                </Button>
-              </Card>
-            ))}
+                  {b.popular && (
+                    <span className="absolute right-1 top-1 rounded-full gradient-gold px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary-foreground">
+                      Popular
+                    </span>
+                  )}
+                  <div>
+                    <div className="text-[10px] font-medium text-muted-foreground">{b.network}</div>
+                    <div className="mt-1 font-display text-2xl font-bold leading-none">{b.gb}<span className="text-sm">GB</span></div>
+                    <div className="mt-1 text-[10px] text-muted-foreground">{b.validity}</div>
+                  </div>
+                  <div className="text-lg font-bold text-gradient-gold">{formatGHS(b.price)}</div>
+                  <Button
+                    size="sm"
+                    onClick={() => openBuy(b)}
+                    className="w-full gradient-gold text-primary-foreground hover:opacity-90 text-xs h-8"
+                  >
+                    Buy
+                  </Button>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Buy auth dialog */}
