@@ -1,8 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard,
   ShoppingCart,
-  Receipt,
   User,
   Bell,
   LifeBuoy,
@@ -48,12 +46,12 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
-        <Link to="/dashboard" className="flex items-center gap-2 px-2 py-3">
+        <Link to="/buy" className="flex items-center gap-2 px-2 py-3">
           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg gradient-gold">
             <Wifi className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-display text-lg font-bold group-data-[collapsible=icon]:hidden">
-            DataHub
+            DataFlex
           </span>
         </Link>
       </SidebarHeader>

@@ -27,7 +27,7 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) navigate({ to: "/dashboard" });
+    if (user) navigate({ to: "/buy" });
   }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -37,7 +37,7 @@ function AuthPage() {
     try {
       await signIn(String(fd.get("email")), String(fd.get("password")));
       toast.success("Welcome back!");
-      navigate({ to: "/dashboard" });
+      navigate({ to: "/buy" });
     } catch {
       toast.error("Sign in failed");
     } finally {
@@ -57,7 +57,7 @@ function AuthPage() {
         String(fd.get("password")),
       );
       toast.success("Account created!");
-      navigate({ to: "/dashboard" });
+      navigate({ to: "/buy" });
     } catch {
       toast.error("Sign up failed");
     } finally {
