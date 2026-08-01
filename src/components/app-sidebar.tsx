@@ -1,6 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  LayoutDashboard,
   ShoppingCart,
+  Receipt,
   User,
   Bell,
   LifeBuoy,
@@ -30,7 +32,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { isAdminEmail } from "@/lib/admin-data";
 
 const items = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Buy Data", url: "/buy", icon: ShoppingCart },
+  { title: "Orders", url: "/orders", icon: Receipt },
   { title: "Notifications", url: "/notifications", icon: Bell },
   { title: "Profile", url: "/profile", icon: User },
   { title: "Support", url: "/support", icon: LifeBuoy },
@@ -46,12 +50,12 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
-        <Link to="/buy" className="flex items-center gap-2 px-2 py-3">
+        <Link to="/dashboard" className="flex items-center gap-2 px-2 py-3">
           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg gradient-gold">
             <Wifi className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-display text-lg font-bold group-data-[collapsible=icon]:hidden">
-            DataFlex
+            DataHub
           </span>
         </Link>
       </SidebarHeader>

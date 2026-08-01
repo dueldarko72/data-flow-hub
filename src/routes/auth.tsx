@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { Wifi, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
+import { Wifi, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,7 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) navigate({ to: "/buy" });
+    if (user) navigate({ to: "/dashboard" });
   }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -37,7 +37,7 @@ function AuthPage() {
     try {
       await signIn(String(fd.get("email")), String(fd.get("password")));
       toast.success("Welcome back!");
-      navigate({ to: "/buy" });
+      navigate({ to: "/dashboard" });
     } catch {
       toast.error("Sign in failed");
     } finally {
@@ -57,7 +57,7 @@ function AuthPage() {
         String(fd.get("password")),
       );
       toast.success("Account created!");
-      navigate({ to: "/buy" });
+      navigate({ to: "/dashboard" });
     } catch {
       toast.error("Sign up failed");
     } finally {
@@ -78,7 +78,7 @@ function AuthPage() {
           <div className="grid h-12 w-12 place-items-center rounded-2xl gradient-gold glow">
             <Wifi className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="mt-4 font-display text-2xl font-bold">Welcome to DataFlex</h1>
+          <h1 className="mt-4 font-display text-2xl font-bold">Welcome to DataHub</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Ghana's fastest MTN data marketplace
           </p>
@@ -107,7 +107,7 @@ function AuthPage() {
                     Forgot?
                   </button>
                 </div>
-                <PasswordInput id="si-password" name="password" />
+                <Input id="si-password" name="password" type="password" required minLength={6} />
               </div>
               <Button
                 type="submit"
@@ -137,7 +137,7 @@ function AuthPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="su-password">Password</Label>
-                <PasswordInput id="su-password" name="password" />
+                <Input id="su-password" name="password" type="password" required minLength={6} />
               </div>
               <Button
                 type="submit"
@@ -154,23 +154,6 @@ function AuthPage() {
           By continuing you agree to our Terms & Privacy Policy.
         </p>
       </Card>
-    </div>
-  );
-}
-
-function PasswordInput({ id, name }: { id: string; name: string }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="relative">
-      <Input id={id} name={name} type={show ? "text" : "password"} required minLength={6} className="pr-10" />
-      <button
-        type="button"
-        onClick={() => setShow((s) => !s)}
-        aria-label={show ? "Hide password" : "Show password"}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-      >
-        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
     </div>
   );
 }
