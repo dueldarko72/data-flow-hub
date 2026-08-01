@@ -38,11 +38,11 @@ import { formatGHS, loadOrders, type Bundle, type Order } from "@/lib/mock-data"
 import {
   loadUsers,
   toggleUserStatus,
-  loadUserBundles,
-  upsertUserBundle,
-  deleteUserBundle,
-  resetUserBundles,
+  loadCatalogue,
+  saveCatalogue,
+  resetCatalogue,
   type AdminUser,
+  type UserCatalogue,
 } from "@/lib/admin-data";
 import { toast } from "sonner";
 
@@ -276,63 +276,157 @@ function UserHistoryDialog({ user, onClose }: { user: AdminUser | null; onClose:
   );
 }
 
+type Group = "fast" | "slow";
+
 function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose: () => void }) {
-  const [bundles, setBundles] = useState<Bundle[]>([]);
-  const [editing, setEditing] = useState<Bundle | null>(null);
+  const [cat, setCat] = useState<UserCatalogue | null>(null);
+  const [editing, setEditing] = useState<{ bundle: Bundle; group: Group } | null>(null);
   const [isNew, setIsNew] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; group: Group } | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
-    if (user) setBundles(loadUserBundles(user.id));
+    if (user) setCat(loadCatalogue(user.id));
     else {
-      setBundles([]);
+      setCat(null);
       setEditing(null);
     }
   }, [user]);
 
-  if (!user) return null;
+  if (!user || !cat) return null;
 
-  const startCreate = () => {
+  const persist = (next: UserCatalogue) => {
+    saveCatalogue(user.id, next);
+    setCat(next);
+  };
+
+  const startCreate = (group: Group) => {
     setEditing({
-      id: "b" + Math.random().toString(36).slice(2, 8),
-      network: "MTN",
-      name: "",
-      gb: 1,
-      price: 0,
-      validity: "24 hours",
-      popular: false,
+      group,
+      bundle: {
+        id: (group === "fast" ? "f" : "s") + Math.random().toString(36).slice(2, 8),
+        network: "MTN",
+        name: "",
+        gb: 1,
+        price: 0,
+        validity: "No expiry",
+        popular: false,
+      },
     });
     setIsNew(true);
   };
 
   const save = () => {
     if (!editing) return;
-    if (!editing.name.trim() || editing.price <= 0 || editing.gb <= 0) {
+    const b = editing.bundle;
+    if (!b.name.trim() || b.price <= 0 || b.gb <= 0) {
       toast.error("Fill in all fields correctly");
       return;
     }
-    upsertUserBundle(user.id, editing);
-    setBundles(loadUserBundles(user.id));
+    const list = [...cat[editing.group]];
+    const i = list.findIndex((x) => x.id === b.id);
+    if (i >= 0) list[i] = b;
+    else list.push(b);
+    persist({ ...cat, [editing.group]: list });
     setEditing(null);
     setIsNew(false);
     toast.success("Bundle saved for " + user.name);
   };
 
   const doDelete = () => {
-    if (!deleteId) return;
-    deleteUserBundle(user.id, deleteId);
-    setBundles(loadUserBundles(user.id));
-    setDeleteId(null);
+    if (!deleteTarget) return;
+    persist({
+      ...cat,
+      [deleteTarget.group]: cat[deleteTarget.group].filter((b) => b.id !== deleteTarget.id),
+    });
+    setDeleteTarget(null);
     toast.success("Bundle removed");
   };
 
   const doReset = () => {
-    resetUserBundles(user.id);
-    setBundles(loadUserBundles(user.id));
+    resetCatalogue(user.id);
+    setCat(loadCatalogue(user.id));
     setConfirmReset(false);
     toast.success("Catalogue reset to defaults");
   };
+
+  const renderGroup = (group: Group, heading: string) => (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-semibold text-gradient-gold">{heading}</h3>
+          {group === "slow" && (
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={cat.slowEnabled}
+                onCheckedChange={(v) => {
+                  persist({ ...cat, slowEnabled: v });
+                  toast.success(v ? "1hr – 2hr delivery enabled" : "1hr – 2hr delivery disabled");
+                }}
+              />
+              <span className="text-xs text-muted-foreground">
+                {cat.slowEnabled ? "Enabled" : "Disabled"}
+              </span>
+            </div>
+          )}
+          <Badge variant="outline" className="text-[10px]">{cat[group].length}</Badge>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => startCreate(group)}>
+          <Plus className="mr-1 h-3.5 w-3.5" /> Add
+        </Button>
+      </div>
+      <div className="overflow-auto rounded-lg border border-border/50">
+        <Table className="min-w-[560px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Validity</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Featured</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {cat[group].map((b) => (
+              <TableRow key={b.id} className={group === "slow" && !cat.slowEnabled ? "opacity-50" : ""}>
+                <TableCell className="font-medium">{b.name}</TableCell>
+                <TableCell className="whitespace-nowrap">{b.gb} GB</TableCell>
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{b.validity}</TableCell>
+                <TableCell className="whitespace-nowrap font-semibold">{formatGHS(b.price)}</TableCell>
+                <TableCell>
+                  {b.popular ? (
+                    <Badge className="gradient-gold text-primary-foreground">
+                      <Star className="mr-1 h-3 w-3" /> Popular
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => { setEditing({ bundle: b, group }); setIsNew(false); }}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDeleteTarget({ id: b.id, group })}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            {cat[group].length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                  No bundles in this group.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -341,77 +435,19 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
           <DialogHeader>
             <DialogTitle>Bundles for {user.name}</DialogTitle>
             <DialogDescription>
-              Manage this customer's personal bundle catalogue, pricing and validity. Changes apply only to <span className="font-medium">{user.email}</span>.
+              Allocate bundles, pricing and validity for <span className="font-medium">{user.email}</span>.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-xs text-muted-foreground">
-              {bundles.length} bundle{bundles.length === 1 ? "" : "s"}
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setConfirmReset(true)}>
-                <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reset
-              </Button>
-              <Button size="sm" onClick={startCreate} className="gradient-gold text-primary-foreground hover:opacity-90">
-                <Plus className="mr-1 h-3.5 w-3.5" /> New bundle
-              </Button>
-            </div>
-          </div>
-
-          <div className="max-h-[50vh] overflow-auto rounded-lg border border-border/50">
-            <Table className="min-w-[560px]">
-
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Validity</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Featured</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bundles.map((b) => (
-                  <TableRow key={b.id}>
-                    <TableCell className="font-medium">{b.name}</TableCell>
-                    <TableCell>{b.gb} GB</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{b.validity}</TableCell>
-                    <TableCell className="font-semibold">{formatGHS(b.price)}</TableCell>
-                    <TableCell>
-                      {b.popular ? (
-                        <Badge className="gradient-gold text-primary-foreground">
-                          <Star className="mr-1 h-3 w-3" /> Popular
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => { setEditing(b); setIsNew(false); }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => setDeleteId(b.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {bundles.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                      No bundles yet. Add one to start.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+          <div className="max-h-[60vh] space-y-6 overflow-auto pr-1">
+            {renderGroup("fast", "Fast delivery")}
+            {renderGroup("slow", "1hr – 2hr delivery")}
           </div>
 
           <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmReset(true)}>
+              <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reset
+            </Button>
             <Button variant="outline" onClick={onClose}>Close</Button>
           </DialogFooter>
         </DialogContent>
@@ -421,34 +457,40 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
         <DialogContent className="glass border-0 sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{isNew ? "New bundle" : "Edit bundle"} — {user.name}</DialogTitle>
+            <DialogDescription>
+              {editing?.group === "fast" ? "Fast delivery" : "1hr – 2hr delivery"}
+            </DialogDescription>
           </DialogHeader>
           {editing && (
             <div className="space-y-3">
               <Field label="Name">
-                <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+                <Input
+                  value={editing.bundle.name}
+                  onChange={(e) => setEditing({ ...editing, bundle: { ...editing.bundle, name: e.target.value } })}
+                />
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Data (GB)">
                   <Input
                     type="number"
                     min={0}
-                    value={editing.gb}
-                    onChange={(e) => setEditing({ ...editing, gb: Number(e.target.value) })}
+                    value={editing.bundle.gb}
+                    onChange={(e) => setEditing({ ...editing, bundle: { ...editing.bundle, gb: Number(e.target.value) } })}
                   />
                 </Field>
                 <Field label="Price (GHS)">
                   <Input
                     type="number"
                     min={0}
-                    value={editing.price}
-                    onChange={(e) => setEditing({ ...editing, price: Number(e.target.value) })}
+                    value={editing.bundle.price}
+                    onChange={(e) => setEditing({ ...editing, bundle: { ...editing.bundle, price: Number(e.target.value) } })}
                   />
                 </Field>
               </div>
               <Field label="Validity">
                 <Input
-                  value={editing.validity}
-                  onChange={(e) => setEditing({ ...editing, validity: e.target.value })}
+                  value={editing.bundle.validity}
+                  onChange={(e) => setEditing({ ...editing, bundle: { ...editing.bundle, validity: e.target.value } })}
                   placeholder="e.g. 30 days"
                 />
               </Field>
@@ -458,8 +500,8 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
                   <div className="text-xs text-muted-foreground">Highlight this bundle for the customer.</div>
                 </div>
                 <Switch
-                  checked={!!editing.popular}
-                  onCheckedChange={(v) => setEditing({ ...editing, popular: v })}
+                  checked={!!editing.bundle.popular}
+                  onCheckedChange={(v) => setEditing({ ...editing, bundle: { ...editing.bundle, popular: v } })}
                 />
               </div>
             </div>
@@ -471,7 +513,7 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent className="glass border-0">
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this bundle?</AlertDialogTitle>
@@ -493,7 +535,7 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
           <AlertDialogHeader>
             <AlertDialogTitle>Reset catalogue?</AlertDialogTitle>
             <AlertDialogDescription>
-              This restores {user.name}'s bundle list to the global defaults. Custom prices will be lost.
+              This restores {user.name}'s bundles to the defaults (4 fast + 9 slower). Custom prices will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
