@@ -1,17 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import {
   Zap,
   ShieldCheck,
   Clock,
-  Sparkles,
-  ArrowRight,
   Menu,
   X,
   Sun,
   Moon,
   Wifi,
-  Star,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -31,13 +29,31 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
-import { BUNDLES, formatGHS } from "@/lib/mock-data";
+import { formatGHS, loadOrders, type Bundle, type Order } from "@/lib/mock-data";
+import { catalogueFor, ensureAdminUser, type UserCatalogue } from "@/lib/admin-data";
 import { toast } from "sonner";
-import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "DataFlex — Buy MTN Ghana Data Bundles Instantly" },
+      {
+        name: "description",
+        content:
+          "DataFlex delivers MTN Ghana data bundles in seconds. Pick a bundle, pay with MoMo, and your data lands instantly.",
+      },
+      { property: "og:title", content: "DataFlex — Buy MTN Data Bundles Instantly" },
+      {
+        property: "og:description",
+        content: "Fast delivery and 1hr–2hr bundles at unbeatable prices in Ghana.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Landing,
 });
 
@@ -46,13 +62,30 @@ function Landing() {
   const { theme, toggle } = useTheme();
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
-  const [buyOpen, setBuyOpen] = useState(false);
-  const [mode, setMode] = useState<"signup" | "login">("signup");
-  const [selectedBundle, setSelectedBundle] = useState<typeof BUNDLES[number] | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [mode, setMode] = useState<"signup" | "login">("login");
+  const [selectedBundle, setSelectedBundle] = useState<Bundle | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [submitting, setSubmitting] = useState(false);
   const [activeBar, setActiveBar] = useState<null | "fast" | "slow">(null);
   const [pendingBar, setPendingBar] = useState<null | "fast" | "slow">(null);
+  const [catalogue, setCatalogue] = useState<UserCatalogue | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    setCatalogue(catalogueFor({ name: user?.name, email: user?.email, phone: user?.phone }));
+    const all = loadOrders();
+    setOrders(
+      user?.phone
+        ? all.filter((o) => o.recipient.replace(/\s+/g, "") === user.phone!.replace(/\s+/g, ""))
+        : all,
+    );
+  }, [user]);
+
+  const bundles = useMemo(() => {
+    if (!catalogue || !activeBar) return [];
+    return activeBar === "fast" ? catalogue.fast : catalogue.slow;
+  }, [catalogue, activeBar]);
 
   const revealBundles = (bar: "fast" | "slow") => {
     setActiveBar(bar);
@@ -61,23 +94,27 @@ function Landing() {
     }, 60);
   };
 
+  const openAuth = (nextMode: "signup" | "login") => {
+    setMode(nextMode);
+    setForm({ name: "", email: "", phone: "" });
+    setAuthOpen(true);
+  };
+
   const handleBarTap = (bar: "fast" | "slow") => {
-    if (bar === "fast") {
-      if (user) {
-        revealBundles("fast");
-        return;
-      }
+    if (bar === "slow" && catalogue && !catalogue.slowEnabled) {
+      toast.error("1hr – 2hr delivery is currently unavailable.");
+      return;
+    }
+    if (bar === "fast" && !user) {
       setPendingBar("fast");
       setSelectedBundle(null);
-      setMode("login");
-      setForm({ name: "", email: "", phone: "" });
-      setBuyOpen(true);
+      openAuth("login");
       return;
     }
     revealBundles(bar);
   };
 
-  const openBuy = (b: typeof BUNDLES[number]) => {
+  const openBuy = (b: Bundle) => {
     try {
       sessionStorage.setItem("datahub-selected-bundle", JSON.stringify(b));
     } catch {}
@@ -86,13 +123,13 @@ function Landing() {
       return;
     }
     setSelectedBundle(b);
-    setMode("signup");
-    setForm({ name: "", email: "", phone: "" });
-    setBuyOpen(true);
+    openAuth("signup");
   };
 
-  const afterAuth = () => {
-    setBuyOpen(false);
+  const afterAuth = (profile: { name: string; email: string; phone: string }) => {
+    ensureAdminUser(profile);
+    setCatalogue(catalogueFor(profile));
+    setAuthOpen(false);
     if (selectedBundle) {
       navigate({ to: "/buy" });
       return;
@@ -103,7 +140,7 @@ function Landing() {
       revealBundles(bar);
       return;
     }
-    navigate({ to: "/buy" });
+    revealBundles("fast");
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -113,7 +150,9 @@ function Landing() {
     try {
       await signUp(form.name, form.email, form.phone, "password");
       toast.success("Account created");
-      afterAuth();
+      afterAuth({ name: form.name, email: form.email, phone: form.phone });
+    } catch {
+      toast.error("Sign up failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -124,15 +163,23 @@ function Landing() {
     if (!form.name || !form.phone) return;
     setSubmitting(true);
     try {
-      const syntheticEmail = `${form.name.toLowerCase().replace(/\s+/g, ".")}@datahub.gh`;
-      await signIn(syntheticEmail, "password");
+      const email = `${form.name.toLowerCase().replace(/\s+/g, ".")}@dataflex.gh`;
+      await signIn(email, "password");
       toast.success("Welcome back");
-      afterAuth();
+      afterAuth({ name: form.name, email, phone: form.phone });
+    } catch {
+      toast.error("Log in failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
+  const navLinks = [
+    { href: "#reports", label: "Reports" },
+    { href: "#how", label: "How it works" },
+    { href: "#faq", label: "FAQ" },
+    { href: "#contact", label: "Contact" },
+  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -144,33 +191,15 @@ function Landing() {
               <div className="grid h-9 w-9 place-items-center rounded-xl gradient-gold glow">
                 <Wifi className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="font-display text-lg font-bold">DataHub</span>
+              <span className="font-display text-lg font-bold">DataFlex</span>
             </Link>
-            <div className="hidden items-center gap-8 md:flex">
-              <a href="#features" className="text-sm text-muted-foreground hover:text-foreground">Features</a>
-              <a href="#how" className="text-sm text-muted-foreground hover:text-foreground">How it works</a>
-              <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground">Bundles</a>
-              <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground">FAQ</a>
-              <a href="#contact" className="text-sm text-muted-foreground hover:text-foreground">Contact</a>
-            </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
-              {!user && (
-                <>
-                  <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-                    <Link to="/auth" search={{ mode: "signin" }}>Sign in</Link>
-                  </Button>
-                  <Button asChild size="sm" className="gradient-gold text-primary-foreground hover:opacity-90">
-                    <Link to="/auth" search={{ mode: "signup" }}>Get started</Link>
-                  </Button>
-                </>
-              )}
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden"
                 onClick={() => setMenu((m) => !m)}
                 aria-label="Menu"
               >
@@ -179,13 +208,13 @@ function Landing() {
             </div>
           </nav>
           {menu && (
-            <div className="glass mt-2 rounded-2xl p-4 md:hidden">
+            <div className="glass mt-2 rounded-2xl p-4">
               <div className="flex flex-col gap-3">
-                <a href="#features" onClick={() => setMenu(false)}>Features</a>
-                <a href="#how" onClick={() => setMenu(false)}>How it works</a>
-                <a href="#pricing" onClick={() => setMenu(false)}>Bundles</a>
-                <a href="#faq" onClick={() => setMenu(false)}>FAQ</a>
-                <a href="#contact" onClick={() => setMenu(false)}>Contact</a>
+                {navLinks.map((l) => (
+                  <a key={l.href} href={l.href} onClick={() => setMenu(false)} className="text-sm">
+                    {l.label}
+                  </a>
+                ))}
               </div>
             </div>
           )}
@@ -195,7 +224,7 @@ function Landing() {
       {/* PRICING / BUNDLES */}
       <section id="pricing" className="mx-auto max-w-7xl px-4 pt-10 pb-16">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">Buy Data Bundle Here</h2>
+          <h1 className="text-3xl font-bold sm:text-4xl">Buy Data Bundle Here</h1>
         </div>
 
         {/* Golden vertical card with two black bars */}
@@ -205,7 +234,7 @@ function Landing() {
             style={{ width: "5cm", height: "8cm" }}
           >
             <div className="text-center text-[10px] font-semibold uppercase tracking-wider text-primary-foreground/80">
-              DataHub • MTN
+              DataFlex • MTN
             </div>
             <button
               type="button"
@@ -217,7 +246,8 @@ function Landing() {
             <button
               type="button"
               onClick={() => handleBarTap("slow")}
-              className={`w-full rounded-lg bg-black px-3 py-3 text-sm font-semibold text-white transition hover:bg-black/85 ${activeBar === "slow" ? "ring-2 ring-white/60" : ""}`}
+              disabled={!!catalogue && !catalogue.slowEnabled}
+              className={`w-full rounded-lg bg-black px-3 py-3 text-sm font-semibold text-white transition hover:bg-black/85 disabled:opacity-40 ${activeBar === "slow" ? "ring-2 ring-white/60" : ""}`}
             >
               1hr – 2hr delivery
             </button>
@@ -230,11 +260,11 @@ function Landing() {
         {/* Bundles list — appears after a bar is chosen */}
         {activeBar && (
           <div id="bundle-list" className="mt-10">
-            <h3 className="text-center text-xl font-semibold text-gradient-gold">
+            <h2 className="text-center text-xl font-semibold text-gradient-gold">
               {activeBar === "fast" ? "Fast delivery" : "1hr – 2hr delivery"}
-            </h3>
+            </h2>
             <div className="mt-6 flex flex-wrap justify-center gap-4">
-              {(activeBar === "fast" ? BUNDLES.slice(0, 3) : BUNDLES.slice(3, 9)).map((b) => (
+              {bundles.map((b) => (
                 <Card
                   key={b.id}
                   className={`glass relative border-0 p-3 flex flex-col justify-between w-[3cm] h-[7cm] ${b.popular ? "ring-2 ring-primary" : ""}`}
@@ -246,7 +276,10 @@ function Landing() {
                   )}
                   <div>
                     <div className="text-[10px] font-medium text-muted-foreground">{b.network}</div>
-                    <div className="mt-1 font-display text-2xl font-bold leading-none">{b.gb}<span className="text-sm">GB</span></div>
+                    <div className="mt-1 font-display text-2xl font-bold leading-none">
+                      {b.gb}
+                      <span className="text-sm">GB</span>
+                    </div>
                     <div className="mt-1 text-[10px] text-muted-foreground">{b.validity}</div>
                   </div>
                   <div className="text-lg font-bold text-gradient-gold">{formatGHS(b.price)}</div>
@@ -259,22 +292,52 @@ function Landing() {
                   </Button>
                 </Card>
               ))}
+              {bundles.length === 0 && (
+                <p className="text-sm text-muted-foreground">No bundles allocated yet.</p>
+              )}
             </div>
           </div>
         )}
+
+        {/* ORDERS — moved from the app menu to the homepage */}
+        <div id="reports" className="mx-auto mt-14 max-w-3xl">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-primary" />
+            <h2 className="text-lg font-semibold">Your orders</h2>
+          </div>
+          <Card className="glass mt-3 border-0 divide-y divide-border/50">
+            {orders.slice(0, 8).map((o) => (
+              <div key={o.id} className="flex flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{o.bundleName}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {o.recipient} • {new Date(o.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="capitalize">{o.status}</Badge>
+                  <span className="text-sm font-semibold text-gradient-gold">{formatGHS(o.amount)}</span>
+                </div>
+              </div>
+            ))}
+            {orders.length === 0 && (
+              <div className="p-6 text-center text-sm text-muted-foreground">No orders yet.</div>
+            )}
+          </Card>
+        </div>
       </section>
 
-      {/* Buy auth dialog */}
-      <Dialog open={buyOpen} onOpenChange={setBuyOpen}>
+      {/* Auth dialog */}
+      <Dialog open={authOpen} onOpenChange={setAuthOpen}>
         <DialogContent className="glass border-0 sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {mode === "signup" ? "Create your account" : "Log in to continue"}
+              {mode === "signup" ? "Sign in — new customer" : "Log in — existing customer"}
             </DialogTitle>
             <DialogDescription>
               {selectedBundle
                 ? `${selectedBundle.gb}GB • ${formatGHS(selectedBundle.price)} • ${selectedBundle.validity}`
-                : "Choose an option to proceed."}
+                : "Continue to see the bundles allocated to you."}
             </DialogDescription>
           </DialogHeader>
 
@@ -293,7 +356,7 @@ function Landing() {
                 <Input id="su-phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
               </div>
               <Button type="submit" disabled={submitting} className="w-full gradient-gold text-primary-foreground hover:opacity-90">
-                {submitting ? "Please wait..." : "Log in"}
+                {submitting ? "Please wait..." : "Sign in"}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
                 Already a customer?{" "}
@@ -318,54 +381,13 @@ function Landing() {
               <p className="text-center text-xs text-muted-foreground">
                 New customer?{" "}
                 <button type="button" onClick={() => setMode("signup")} className="font-semibold text-primary hover:underline">
-                  Sign up
+                  Sign in
                 </button>
               </p>
             </form>
           )}
         </DialogContent>
       </Dialog>
-
-      {/* HERO */}
-      <section className="hero-bg relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-4 pt-10 pb-16 text-center">
-          <div className="glass mx-auto mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px]">
-            <Sparkles className="h-3 w-3 text-primary" />
-            Ghana's fastest MTN data marketplace
-          </div>
-          <h1 className="mx-auto max-w-3xl text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
-            Instant data bundles. <span className="text-gradient-gold">Zero hassle.</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-xl text-xs text-muted-foreground sm:text-sm">
-            Buy MTN Ghana data bundles in seconds. No calls, no waiting, no middlemen — pay securely
-            and your bundle lands on any number, instantly.
-          </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-            <Button asChild size="sm" className="gradient-gold text-primary-foreground hover:opacity-90 glow">
-              <Link to="/auth" search={{ mode: "signup" }}>
-                Buy data now <ArrowRight className="ml-1 h-3 w-3" />
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <a href="#pricing">View bundles</a>
-            </Button>
-          </div>
-
-          {/* Trust bar */}
-          <div className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-3">
-            {[
-              { k: "10k+", v: "Bundles delivered" },
-              { k: "99.9%", v: "Success rate" },
-              { k: "< 30s", v: "Avg delivery" },
-            ].map((s) => (
-              <div key={s.v} className="glass rounded-xl p-3">
-                <div className="font-display text-lg font-bold text-gradient-gold">{s.k}</div>
-                <div className="mt-0.5 text-[10px] text-muted-foreground">{s.v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* FEATURES */}
       <section id="features" className="mx-auto max-w-7xl px-4 py-16">
@@ -403,8 +425,8 @@ function Landing() {
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {[
-              { n: "01", t: "Create your account", d: "Sign up with your email or phone." },
-              { n: "02", t: "Pick a bundle", d: "Choose network, size, and recipient." },
+              { n: "01", t: "Pick a delivery speed", d: "Fast delivery or 1hr – 2hr." },
+              { n: "02", t: "Choose your bundle", d: "Prices are set for your account." },
               { n: "03", t: "Pay & receive", d: "Complete payment — bundle lands instantly." },
             ].map((s) => (
               <div key={s.n} className="glass rounded-2xl p-5">
@@ -417,39 +439,6 @@ function Landing() {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section className="mx-auto max-w-7xl px-4 py-16">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-bold sm:text-3xl">Loved across Ghana</h2>
-        </div>
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {[
-            { n: "Ama K.", r: "Accra", q: "Bought 20GB at midnight and it dropped in seconds. This is the way." },
-            { n: "Kwame O.", r: "Kumasi", q: "Cheapest MTN bundles I've found. The dashboard is beautiful too." },
-            { n: "Efua M.", r: "Takoradi", q: "I run a small shop — I resell for my customers. DataHub never fails me." },
-          ].map((t) => (
-            <Card key={t.n} className="glass border-0 p-5">
-              <div className="flex gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="h-3 w-3 fill-primary text-primary" />
-                ))}
-              </div>
-              <p className="mt-3 text-xs leading-relaxed">"{t.q}"</p>
-              <div className="mt-4 flex items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-full gradient-gold text-xs font-bold text-primary-foreground">
-                  {t.n[0]}
-                </div>
-                <div>
-                  <div className="text-xs font-semibold">{t.n}</div>
-                  <div className="text-[10px] text-muted-foreground">{t.r}</div>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-
       {/* FAQ */}
       <section id="faq" className="mx-auto max-w-3xl px-4 py-24">
         <div className="text-center">
@@ -457,11 +446,11 @@ function Landing() {
         </div>
         <Accordion type="single" collapsible className="mt-10">
           {[
-            { q: "How fast is delivery?", a: "Most bundles are delivered within 30 seconds. You'll see the order move from Pending to Completed in your dashboard in real time." },
+            { q: "How fast is delivery?", a: "Fast delivery bundles land in under 30 seconds. The 1hr – 2hr group is delivered within two hours." },
             { q: "Which networks are supported?", a: "MTN Ghana is live today. Vodafone Cash and AirtelTigo are coming soon." },
-            { q: "What if my bundle doesn't arrive?", a: "You'll receive an automatic refund to your wallet within minutes if delivery fails." },
+            { q: "What if my bundle doesn't arrive?", a: "You'll receive an automatic refund within minutes if delivery fails." },
             { q: "How do I pay?", a: "MTN Mobile Money is supported now. Cards and bank transfer are on the way." },
-            { q: "Can I buy for someone else?", a: "Yes — enter any Ghanaian number when placing your order." },
+            { q: "Can I buy for someone else?", a: "Your registered number is used by default. Tap Change number to register another one." },
           ].map((f, i) => (
             <AccordionItem key={i} value={`i${i}`} className="glass mb-3 rounded-2xl border-0 px-5">
               <AccordionTrigger className="text-left hover:no-underline">{f.q}</AccordionTrigger>
@@ -481,7 +470,7 @@ function Landing() {
                 Have a question or need support? Reach out and we'll get back within an hour.
               </p>
               <div className="mt-6 space-y-3 text-sm">
-                <div><span className="text-muted-foreground">Email:</span> support@datahub.gh</div>
+                <div><span className="text-muted-foreground">Email:</span> support@dataflex.gh</div>
                 <div><span className="text-muted-foreground">WhatsApp:</span> +233 55 000 0000</div>
                 <div><span className="text-muted-foreground">Hours:</span> 24/7</div>
               </div>
@@ -513,7 +502,7 @@ function Landing() {
               <div className="grid h-8 w-8 place-items-center rounded-lg gradient-gold">
                 <Wifi className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold">DataHub</span>
+              <span className="font-display font-bold">DataFlex</span>
               <span className="text-xs text-muted-foreground">© {new Date().getFullYear()}</span>
             </div>
             <div className="flex items-center gap-6 text-xs text-muted-foreground">
