@@ -24,7 +24,6 @@ import { Route as AppSupportRouteImport } from './routes/_app.support'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppOrdersRouteImport } from './routes/_app.orders'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
-import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBuyRouteImport } from './routes/_app.buy'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -101,11 +100,6 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppBuyRoute = AppBuyRouteImport.update({
   id: '/buy',
   path: '/buy',
@@ -118,7 +112,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/buy': typeof AppBuyRoute
-  '/dashboard': typeof AppDashboardRoute
   '/notifications': typeof AppNotificationsRoute
   '/orders': typeof AppOrdersRoute
   '/profile': typeof AppProfileRoute
@@ -135,7 +128,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/buy': typeof AppBuyRoute
-  '/dashboard': typeof AppDashboardRoute
   '/notifications': typeof AppNotificationsRoute
   '/orders': typeof AppOrdersRoute
   '/profile': typeof AppProfileRoute
@@ -155,7 +147,6 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/buy': typeof AppBuyRoute
-  '/_app/dashboard': typeof AppDashboardRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/orders': typeof AppOrdersRoute
   '/_app/profile': typeof AppProfileRoute
@@ -175,7 +166,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/sitemap.xml'
     | '/buy'
-    | '/dashboard'
     | '/notifications'
     | '/orders'
     | '/profile'
@@ -192,7 +182,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/sitemap.xml'
     | '/buy'
-    | '/dashboard'
     | '/notifications'
     | '/orders'
     | '/profile'
@@ -211,7 +200,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/sitemap.xml'
     | '/_app/buy'
-    | '/_app/dashboard'
     | '/_app/notifications'
     | '/_app/orders'
     | '/_app/profile'
@@ -339,13 +327,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/buy': {
       id: '/_app/buy'
       path: '/buy'
@@ -358,7 +339,6 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppBuyRoute: typeof AppBuyRoute
-  AppDashboardRoute: typeof AppDashboardRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppOrdersRoute: typeof AppOrdersRoute
   AppProfileRoute: typeof AppProfileRoute
@@ -367,7 +347,6 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppBuyRoute: AppBuyRoute,
-  AppDashboardRoute: AppDashboardRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppOrdersRoute: AppOrdersRoute,
   AppProfileRoute: AppProfileRoute,
