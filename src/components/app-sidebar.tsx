@@ -32,9 +32,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { isAdminEmail } from "@/lib/admin-data";
 
 const items = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Buy Data", url: "/buy", icon: ShoppingCart },
-  { title: "Orders", url: "/orders", icon: Receipt },
   { title: "Notifications", url: "/notifications", icon: Bell },
   { title: "Profile", url: "/profile", icon: User },
   { title: "Support", url: "/support", icon: LifeBuoy },
