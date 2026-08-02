@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { Wifi, ArrowLeft, Loader2 } from "lucide-react";
+import { Wifi, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,7 +107,7 @@ function AuthPage() {
                     Forgot?
                   </button>
                 </div>
-                <Input id="si-password" name="password" type="password" required minLength={6} />
+                <PasswordInput id="si-password" />
               </div>
               <Button
                 type="submit"
@@ -137,7 +137,7 @@ function AuthPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="su-password">Password</Label>
-                <Input id="su-password" name="password" type="password" required minLength={6} />
+                <PasswordInput id="su-password" />
               </div>
               <Button
                 type="submit"
@@ -154,6 +154,23 @@ function AuthPage() {
           By continuing you agree to our Terms & Privacy Policy.
         </p>
       </Card>
+    </div>
+  );
+}
+
+function PasswordInput({ id }: { id: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <Input id={id} name="password" type={show ? "text" : "password"} required minLength={6} className="pr-10" />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        aria-label={show ? "Hide password" : "Show password"}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+      >
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
     </div>
   );
 }
