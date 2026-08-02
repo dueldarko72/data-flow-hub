@@ -1,3 +1,5 @@
+export type DeliveryGroup = "fast" | "slow";
+
 export interface Bundle {
   id: string;
   network: "MTN" | "Vodafone" | "AirtelTigo";
@@ -7,6 +9,7 @@ export interface Bundle {
   validity: string;
   popular?: boolean;
   description?: string;
+  group?: DeliveryGroup;
 }
 
 export type OrderStatus =
@@ -40,18 +43,29 @@ export interface AppNotification {
   type: "order" | "announcement" | "system";
 }
 
-export const BUNDLES: Bundle[] = [
-  { id: "b1", network: "MTN", name: "Starter 1GB", gb: 1, price: 6, validity: "24 hours" },
-  { id: "b2", network: "MTN", name: "Daily 2GB", gb: 2, price: 11, validity: "24 hours" },
-  { id: "b3", network: "MTN", name: "Weekly 5GB", gb: 5, price: 25, validity: "7 days", popular: true },
-  { id: "b9", network: "MTN", name: "Flash 3GB", gb: 3, price: 15, validity: "24 hours" },
-  { id: "b4", network: "MTN", name: "Weekly 10GB", gb: 10, price: 45, validity: "7 days" },
-  { id: "b5", network: "MTN", name: "Monthly 20GB", gb: 20, price: 85, validity: "30 days", popular: true },
-  { id: "b6", network: "MTN", name: "Monthly 50GB", gb: 50, price: 190, validity: "30 days" },
-  { id: "b7", network: "MTN", name: "Mega 100GB", gb: 100, price: 340, validity: "30 days" },
-  { id: "b8", network: "MTN", name: "Pro 200GB", gb: 200, price: 620, validity: "60 days" },
-  { id: "b10", network: "MTN", name: "Ultra 300GB", gb: 300, price: 880, validity: "90 days" },
+/** 4 instantly-delivered bundles */
+export const FAST_BUNDLES: Bundle[] = [
+  { id: "f1", network: "MTN", name: "Starter 1GB", gb: 1, price: 6, validity: "24 hours", group: "fast" },
+  { id: "f2", network: "MTN", name: "Daily 2GB", gb: 2, price: 11, validity: "24 hours", group: "fast" },
+  { id: "f3", network: "MTN", name: "Flash 3GB", gb: 3, price: 15, validity: "24 hours", group: "fast", popular: true },
+  { id: "f4", network: "MTN", name: "Weekly 5GB", gb: 5, price: 25, validity: "7 days", group: "fast" },
 ];
+
+/** 9 bundles delivered within 1hr – 2hr */
+export const SLOW_BUNDLES: Bundle[] = [
+  { id: "s1", network: "MTN", name: "Value 6GB", gb: 6, price: 28, validity: "7 days", group: "slow" },
+  { id: "s2", network: "MTN", name: "Value 8GB", gb: 8, price: 36, validity: "7 days", group: "slow" },
+  { id: "s3", network: "MTN", name: "Weekly 10GB", gb: 10, price: 45, validity: "7 days", group: "slow" },
+  { id: "s4", network: "MTN", name: "Boost 15GB", gb: 15, price: 65, validity: "30 days", group: "slow" },
+  { id: "s5", network: "MTN", name: "Monthly 20GB", gb: 20, price: 85, validity: "30 days", group: "slow", popular: true },
+  { id: "s6", network: "MTN", name: "Monthly 25GB", gb: 25, price: 100, validity: "30 days", group: "slow" },
+  { id: "s7", network: "MTN", name: "Monthly 30GB", gb: 30, price: 120, validity: "30 days", group: "slow" },
+  { id: "s8", network: "MTN", name: "Monthly 50GB", gb: 50, price: 190, validity: "30 days", group: "slow" },
+  { id: "s9", network: "MTN", name: "Mega 100GB", gb: 100, price: 340, validity: "30 days", group: "slow" },
+];
+
+export const BUNDLES: Bundle[] = [...FAST_BUNDLES, ...SLOW_BUNDLES];
+
 
 const ORDERS_KEY = "datahub-orders";
 const NOTIF_KEY = "datahub-notifications";
