@@ -12,7 +12,7 @@ export interface User {
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, extra?: Partial<User>) => Promise<void>;
   signUp: (name: string, email: string, phone: string, password: string) => Promise<void>;
   signOut: () => void;
   updateUser: (patch: Partial<User>) => void;
@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {}
   };
 
-  const signIn: AuthContextValue["signIn"] = async (email) => {
+  const signIn: AuthContextValue["signIn"] = async (email, _password, extra) => {
     await new Promise((r) => setTimeout(r, 500));
     const name = email.split("@")[0].replace(/[._-]/g, " ");
     persist({
@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: name.charAt(0).toUpperCase() + name.slice(1),
       email,
       createdAt: new Date().toISOString(),
+      ...extra,
     });
   };
 

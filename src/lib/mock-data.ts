@@ -1,3 +1,5 @@
+export type BundleGroup = "fast" | "slow";
+
 export interface Bundle {
   id: string;
   network: "MTN" | "Vodafone" | "AirtelTigo";
@@ -7,6 +9,7 @@ export interface Bundle {
   validity: string;
   popular?: boolean;
   description?: string;
+  group?: BundleGroup;
 }
 
 export type OrderStatus =
