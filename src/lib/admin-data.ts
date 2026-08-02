@@ -90,8 +90,26 @@ export function toggleUserStatus(id: string) {
 
 // ============ Per-user bundle catalogues ============
 const USER_BUNDLES_KEY = "datahub-user-bundles";
+const USER_SLOW_KEY = "datahub-user-slow-enabled";
 
 type UserBundleMap = Record<string, Bundle[]>;
+
+/** 4 "Fast delivery" bundles + 9 "1hr – 2hr delivery" bundles */
+export const DEFAULT_USER_CATALOG: Bundle[] = [
+  { id: "f1", network: "MTN", name: "Flash 1GB", gb: 1, price: 6, validity: "24 hours", group: "fast" },
+  { id: "f2", network: "MTN", name: "Flash 2GB", gb: 2, price: 11, validity: "24 hours", group: "fast", popular: true },
+  { id: "f3", network: "MTN", name: "Flash 3GB", gb: 3, price: 15, validity: "24 hours", group: "fast" },
+  { id: "f4", network: "MTN", name: "Flash 5GB", gb: 5, price: 25, validity: "7 days", group: "fast" },
+  { id: "s1", network: "MTN", name: "Value 5GB", gb: 5, price: 22, validity: "7 days", group: "slow" },
+  { id: "s2", network: "MTN", name: "Value 10GB", gb: 10, price: 42, validity: "7 days", group: "slow" },
+  { id: "s3", network: "MTN", name: "Value 15GB", gb: 15, price: 62, validity: "30 days", group: "slow" },
+  { id: "s4", network: "MTN", name: "Value 20GB", gb: 20, price: 80, validity: "30 days", group: "slow", popular: true },
+  { id: "s5", network: "MTN", name: "Value 30GB", gb: 30, price: 118, validity: "30 days", group: "slow" },
+  { id: "s6", network: "MTN", name: "Value 50GB", gb: 50, price: 185, validity: "30 days", group: "slow" },
+  { id: "s7", network: "MTN", name: "Value 100GB", gb: 100, price: 335, validity: "30 days", group: "slow" },
+  { id: "s8", network: "MTN", name: "Value 200GB", gb: 200, price: 610, validity: "60 days", group: "slow" },
+  { id: "s9", network: "MTN", name: "Value 300GB", gb: 300, price: 870, validity: "90 days", group: "slow" },
+];
 
 function loadAllUserBundles(): UserBundleMap {
   try {
@@ -110,8 +128,7 @@ function saveAllUserBundles(m: UserBundleMap) {
 export function loadUserBundles(userId: string): Bundle[] {
   const all = loadAllUserBundles();
   if (all[userId]) return all[userId];
-  // default to a clone of the global catalogue
-  const clone = loadBundles().map((b) => ({ ...b }));
+  const clone = DEFAULT_USER_CATALOG.map((b) => ({ ...b }));
   all[userId] = clone;
   saveAllUserBundles(all);
   return clone;
@@ -142,7 +159,62 @@ export function resetUserBundles(userId: string) {
   const all = loadAllUserBundles();
   delete all[userId];
   saveAllUserBundles(all);
+  setUserSlowEnabled(userId, true);
 }
+
+/** "1hr – 2hr delivery" availability per user — on by default. */
+export function loadUserSlowEnabled(userId: string): boolean {
+  try {
+    const raw = localStorage.getItem(USER_SLOW_KEY);
+    if (raw) {
+      const map = JSON.parse(raw) as Record<string, boolean>;
+      if (typeof map[userId] === "boolean") return map[userId];
+    }
+  } catch {}
+  return true;
+}
+
+export function setUserSlowEnabled(userId: string, enabled: boolean) {
+  try {
+    const raw = localStorage.getItem(USER_SLOW_KEY);
+    const map = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    map[userId] = enabled;
+    localStorage.setItem(USER_SLOW_KEY, JSON.stringify(map));
+  } catch {}
+}
+
+/** Find (or create) the admin-side customer record for a signed-in visitor. */
+export function ensureAdminUser(input: { name: string; email: string; phone?: string }): AdminUser {
+  const users = loadUsers();
+  const phone = (input.phone ?? "").replace(/\s+/g, "");
+  const found = users.find(
+    (u) =>
+      (phone && (u.phone ?? "").replace(/\s+/g, "") === phone) ||
+      u.email.toLowerCase() === input.email.toLowerCase() ||
+      u.name.toLowerCase() === input.name.toLowerCase(),
+  );
+  if (found) {
+    if (phone && !found.phone) {
+      found.phone = phone;
+      saveUsers(users);
+    }
+    return found;
+  }
+  const created: AdminUser = {
+    id: crypto.randomUUID(),
+    name: input.name,
+    email: input.email,
+    phone: phone || undefined,
+    createdAt: new Date().toISOString(),
+    status: "active",
+    spent: 0,
+    orders: 0,
+  };
+  users.unshift(created);
+  saveUsers(users);
+  return created;
+}
+
 
 export interface AdminSettings {
   storeName: string;
@@ -154,8 +226,8 @@ export interface AdminSettings {
 }
 
 const DEFAULT_SETTINGS: AdminSettings = {
-  storeName: "DataHub",
-  supportEmail: "support@datahub.gh",
+  storeName: "DataFlex",
+  supportEmail: "support@dataflex.gh",
   supportPhone: "+233 24 000 0000",
   momoNumber: "0244000000",
   autoApprove: false,

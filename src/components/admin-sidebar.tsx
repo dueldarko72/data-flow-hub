@@ -57,7 +57,7 @@ export function AdminSidebar() {
             <Shield className="h-4 w-4 text-primary-foreground" />
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="font-display text-sm font-bold leading-tight">DataHub</div>
+            <div className="font-display text-sm font-bold leading-tight">DataFlex</div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Admin</div>
           </div>
         </Link>

@@ -78,15 +78,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "DataHub — Instant MTN Ghana Data Bundles" },
+      { title: "DataFlex — Instant MTN Ghana Data Bundles" },
       {
         name: "description",
         content:
-          "Buy MTN Ghana data bundles instantly. Secure, fast, and reliable — no calls, no waiting. Powered by DataHub.",
+          "Buy MTN Ghana data bundles instantly. Secure, fast, and reliable — no calls, no waiting. Powered by DataFlex.",
       },
-      { name: "author", content: "DataHub" },
+      { name: "author", content: "DataFlex" },
       { name: "theme-color", content: "#0A0A0A" },
-      { property: "og:title", content: "DataHub — Instant MTN Ghana Data Bundles" },
+      { property: "og:title", content: "DataFlex — Instant MTN Ghana Data Bundles" },
       {
         property: "og:description",
         content: "Buy MTN Ghana data bundles instantly. No calls, no waiting.",

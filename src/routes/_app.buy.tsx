@@ -1,27 +1,42 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, ArrowLeft, Check, Loader2, Phone, CreditCard } from "lucide-react";
+import { Loader2, Phone, CreditCard, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { BUNDLES, formatGHS, addOrder, pushNotification, type Bundle } from "@/lib/mock-data";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { formatGHS, addOrder, pushNotification, type Bundle } from "@/lib/mock-data";
+import { DEFAULT_USER_CATALOG, ensureAdminUser } from "@/lib/admin-data";
+import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/buy")({
   component: BuyPage,
 });
 
-type Step = 1 | 2;
+type Status = "idle" | "processing" | "success" | "error";
 
 function BuyPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>(1);
+  const { user, signUp } = useAuth();
   const [bundle, setBundle] = useState<Bundle | null>(null);
-  const [recipient, setRecipient] = useState("");
   const [method, setMethod] = useState("momo");
-  const [processing, setProcessing] = useState(false);
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [reference, setReference] = useState("");
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [submitting, setSubmitting] = useState(false);
+
+  const recipient = user?.phone ?? "";
 
   useEffect(() => {
     try {
@@ -31,21 +46,28 @@ function BuyPage() {
         return;
       }
     } catch {}
-    // fallback: first MTN bundle
-    const first = BUNDLES.find((b) => b.network === "MTN") ?? BUNDLES[0];
-    setBundle(first);
+    setBundle(DEFAULT_USER_CATALOG[0]);
   }, []);
 
-  const validPhone = /^0[235]\d{8}$/.test(recipient);
-
   const handlePay = async () => {
-    if (!bundle) return;
-    setProcessing(true);
+    if (!bundle || !recipient) return;
+    setStatus("processing");
+    setErrorMsg("");
     await new Promise((r) => setTimeout(r, 1400));
-    const ref = "DH-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-    const orderId = crypto.randomUUID();
+
+    // Simulated payment gateway result
+    const failed = Math.random() < 0.15;
+    if (failed) {
+      setStatus("error");
+      setErrorMsg("Your Mobile Money payment could not be confirmed. No money was deducted.");
+      toast.error("Payment failed — you can retry.");
+      return;
+    }
+
+    const ref = "DF-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+    setReference(ref);
     addOrder({
-      id: orderId,
+      id: crypto.randomUUID(),
       reference: ref,
       bundleId: bundle.id,
       bundleName: bundle.name,
@@ -68,8 +90,25 @@ function BuyPage() {
     try {
       sessionStorage.removeItem("datahub-selected-bundle");
     } catch {}
+    setStatus("success");
     toast.success("Payment received. Order created!");
-    navigate({ to: "/orders" });
+  };
+
+  const handleChangeNumber = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.email || !form.phone) return;
+    setSubmitting(true);
+    try {
+      ensureAdminUser({ name: form.name, email: form.email, phone: form.phone });
+      await signUp(form.name, form.email, form.phone, "password");
+      toast.success("Signed in with the new number");
+      setChangeOpen(false);
+      setStatus("idle");
+    } catch {
+      toast.error("Could not sign in. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!bundle) {
@@ -87,36 +126,8 @@ function BuyPage() {
       <div>
         <h1 className="font-display text-3xl font-bold">Buy data</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Confirm recipient and pay — done.
+          Confirm your registered number and pay — done.
         </p>
-      </div>
-
-      {/* Stepper */}
-      <div className="glass flex items-center justify-between rounded-2xl p-3">
-        {["Recipient", "Payment"].map((label, i) => {
-          const s = (i + 1) as Step;
-          const active = step === s;
-          const done = step > s;
-          return (
-            <div key={label} className="flex flex-1 items-center gap-2">
-              <div
-                className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-semibold transition ${
-                  done
-                    ? "gradient-gold text-primary-foreground"
-                    : active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {done ? <Check className="h-4 w-4" /> : s}
-              </div>
-              <span className={`hidden text-xs font-medium sm:inline ${active ? "" : "text-muted-foreground"}`}>
-                {label}
-              </span>
-              {i < 1 && <div className="mx-2 h-px flex-1 bg-border" />}
-            </div>
-          );
-        })}
       </div>
 
       {/* Selected bundle summary */}
@@ -131,45 +142,60 @@ function BuyPage() {
       </Card>
 
       <Card className="glass border-0 p-6">
-        {step === 1 && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Recipient number</h2>
+        {status === "success" ? (
+          <div className="space-y-4 text-center">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
+            <div>
+              <h2 className="text-lg font-semibold">Payment successful</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {bundle.gb}GB is on its way to {recipient}. Reference{" "}
+                <span className="font-mono font-medium">{reference}</span>.
+              </p>
+            </div>
+            <div className="flex justify-center gap-2">
+              <Button variant="outline" onClick={() => navigate({ to: "/" })}>Back home</Button>
+              <Button
+                className="gradient-gold text-primary-foreground"
+                onClick={() => navigate({ to: "/orders" })}
+              >
+                View order
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="phone">Ghana phone number</Label>
+              <Label htmlFor="phone">Recipient number</Label>
               <div className="relative">
                 <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="phone"
                   className="pl-10"
-                  placeholder="0244123456"
-                  value={recipient}
-                  onChange={(e) => setRecipient(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  value={recipient || "No registered number"}
+                  readOnly
+                  disabled
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setForm({ name: "", email: "", phone: "" });
+                  setChangeOpen(true);
+                }}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                Change number
+              </button>
               <p className="text-xs text-muted-foreground">
-                Enter a 10-digit MTN number starting with 024, 054, or 025.
+                Your registered number is used automatically and cannot be edited here.
               </p>
             </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={() => setStep(2)}
-                disabled={!validPhone}
-                className="gradient-gold text-primary-foreground"
-              >
-                Review <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
 
-        {step === 2 && (
-          <div className="space-y-5">
-            <h2 className="text-lg font-semibold">Review & pay</h2>
             <div className="space-y-2 rounded-xl border border-border p-4 text-sm">
               <Row label="Network" value={bundle.network} />
               <Row label="Bundle" value={`${bundle.name} (${bundle.gb}GB)`} />
               <Row label="Validity" value={bundle.validity} />
-              <Row label="Recipient" value={recipient} />
+              <Row label="Recipient" value={recipient || "—"} />
               <div className="border-t border-border pt-2">
                 <Row label="Total" value={formatGHS(bundle.price)} bold />
               </div>
@@ -199,18 +225,39 @@ function BuyPage() {
               </RadioGroup>
             </div>
 
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)} disabled={processing}>
-                <ArrowLeft className="mr-1 h-4 w-4" /> Back
+            {status === "error" && (
+              <div className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <div className="text-sm">
+                  <div className="font-semibold text-destructive">Payment failed</div>
+                  <p className="text-muted-foreground">{errorMsg}</p>
+                </div>
+              </div>
+            )}
+
+            {status === "processing" && (
+              <div className="flex items-center gap-3 rounded-xl border border-border p-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                Waiting for Mobile Money confirmation…
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => navigate({ to: "/" })} disabled={status === "processing"}>
+                Cancel
               </Button>
               <Button
                 onClick={handlePay}
-                disabled={processing}
+                disabled={status === "processing" || !recipient}
                 className="gradient-gold text-primary-foreground glow"
               >
-                {processing ? (
+                {status === "processing" ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing…
+                  </>
+                ) : status === "error" ? (
+                  <>
+                    <RotateCcw className="mr-2 h-4 w-4" /> Retry payment
                   </>
                 ) : (
                   `Pay ${formatGHS(bundle.price)}`
@@ -220,6 +267,35 @@ function BuyPage() {
           </div>
         )}
       </Card>
+
+      {/* Change number = sign in as a new user */}
+      <Dialog open={changeOpen} onOpenChange={setChangeOpen}>
+        <DialogContent className="glass border-0 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sign in with another number</DialogTitle>
+            <DialogDescription>
+              Create a new customer profile — the bundle is delivered to this number.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleChangeNumber} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="cn-name">User name</Label>
+              <Input id="cn-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cn-email">Email</Label>
+              <Input id="cn-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cn-phone">Phone number</Label>
+              <Input id="cn-phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+            </div>
+            <Button type="submit" disabled={submitting} className="w-full gradient-gold text-primary-foreground hover:opacity-90">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

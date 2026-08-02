@@ -1,3 +1,5 @@
+export type BundleGroup = "fast" | "slow";
+
 export interface Bundle {
   id: string;
   network: "MTN" | "Vodafone" | "AirtelTigo";
@@ -7,6 +9,7 @@ export interface Bundle {
   validity: string;
   popular?: boolean;
   description?: string;
+  group?: BundleGroup;
 }
 
 export type OrderStatus =
@@ -120,7 +123,7 @@ export function loadNotifications(): AppNotification[] {
   const seed: AppNotification[] = [
     {
       id: crypto.randomUUID(),
-      title: "Welcome to DataHub 🎉",
+      title: "Welcome to DataFlex 🎉",
       message: "Buy MTN data bundles instantly. Enjoy unbeatable prices.",
       createdAt: new Date().toISOString(),
       read: false,

@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   ShoppingCart,
-  Receipt,
+
   User,
   Bell,
   LifeBuoy,
@@ -34,7 +34,7 @@ import { isAdminEmail } from "@/lib/admin-data";
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Buy Data", url: "/buy", icon: ShoppingCart },
-  { title: "Orders", url: "/orders", icon: Receipt },
+  
   { title: "Notifications", url: "/notifications", icon: Bell },
   { title: "Profile", url: "/profile", icon: User },
   { title: "Support", url: "/support", icon: LifeBuoy },
@@ -55,7 +55,7 @@ export function AppSidebar() {
             <Wifi className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-display text-lg font-bold group-data-[collapsible=icon]:hidden">
-            DataHub
+            DataFlex
           </span>
         </Link>
       </SidebarHeader>

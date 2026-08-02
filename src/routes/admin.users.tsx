@@ -42,6 +42,8 @@ import {
   upsertUserBundle,
   deleteUserBundle,
   resetUserBundles,
+  loadUserSlowEnabled,
+  setUserSlowEnabled,
   type AdminUser,
 } from "@/lib/admin-data";
 import { toast } from "sonner";
@@ -282,10 +284,13 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
   const [isNew, setIsNew] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [slowEnabled, setSlowEnabled] = useState(true);
 
   useEffect(() => {
-    if (user) setBundles(loadUserBundles(user.id));
-    else {
+    if (user) {
+      setBundles(loadUserBundles(user.id));
+      setSlowEnabled(loadUserSlowEnabled(user.id));
+    } else {
       setBundles([]);
       setEditing(null);
     }
@@ -302,6 +307,7 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
       price: 0,
       validity: "24 hours",
       popular: false,
+      group: "fast",
     });
     setIsNew(true);
   };
@@ -359,57 +365,37 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
             </div>
           </div>
 
-          <div className="max-h-[50vh] overflow-auto rounded-lg border border-border/50">
-            <Table className="min-w-[560px]">
-
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Validity</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Featured</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bundles.map((b) => (
-                  <TableRow key={b.id}>
-                    <TableCell className="font-medium">{b.name}</TableCell>
-                    <TableCell>{b.gb} GB</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{b.validity}</TableCell>
-                    <TableCell className="font-semibold">{formatGHS(b.price)}</TableCell>
-                    <TableCell>
-                      {b.popular ? (
-                        <Badge className="gradient-gold text-primary-foreground">
-                          <Star className="mr-1 h-3 w-3" /> Popular
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => { setEditing(b); setIsNew(false); }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => setDeleteId(b.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {bundles.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                      No bundles yet. Add one to start.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+          <div className="max-h-[50vh] space-y-6 overflow-auto pr-1">
+            <BundleGroupTable
+              title="Fast delivery"
+              bundles={bundles.filter((b) => b.group !== "slow")}
+              onEdit={(b) => { setEditing(b); setIsNew(false); }}
+              onDelete={setDeleteId}
+            />
+            <BundleGroupTable
+              title="1hr – 2hr delivery"
+              bundles={bundles.filter((b) => b.group === "slow")}
+              onEdit={(b) => { setEditing(b); setIsNew(false); }}
+              onDelete={setDeleteId}
+              headerExtra={
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {slowEnabled ? "Enabled" : "Disabled"}
+                  </span>
+                  <Switch
+                    checked={slowEnabled}
+                    onCheckedChange={(v) => {
+                      setSlowEnabled(v);
+                      setUserSlowEnabled(user.id, v);
+                      toast.success(`1hr – 2hr delivery ${v ? "enabled" : "disabled"} for ${user.name}`);
+                    }}
+                  />
+                </div>
+              }
+              disabled={!slowEnabled}
+            />
           </div>
+
 
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>Close</Button>
@@ -451,6 +437,22 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
                   onChange={(e) => setEditing({ ...editing, validity: e.target.value })}
                   placeholder="e.g. 30 days"
                 />
+              </Field>
+              <Field label="Delivery group">
+                <div className="flex gap-2">
+                  {(["fast", "slow"] as const).map((g) => (
+                    <Button
+                      key={g}
+                      type="button"
+                      size="sm"
+                      variant={(editing.group ?? "fast") === g ? "default" : "outline"}
+                      className={(editing.group ?? "fast") === g ? "gradient-gold text-primary-foreground" : ""}
+                      onClick={() => setEditing({ ...editing, group: g })}
+                    >
+                      {g === "fast" ? "Fast delivery" : "1hr – 2hr delivery"}
+                    </Button>
+                  ))}
+                </div>
               </Field>
               <div className="flex items-center justify-between rounded-lg border border-border/50 p-3">
                 <div>
@@ -506,6 +508,81 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
   );
 }
 
+function BundleGroupTable({
+  title,
+  bundles,
+  onEdit,
+  onDelete,
+  headerExtra,
+  disabled,
+}: {
+  title: string;
+  bundles: Bundle[];
+  onEdit: (b: Bundle) => void;
+  onDelete: (id: string) => void;
+  headerExtra?: React.ReactNode;
+  disabled?: boolean;
+}) {
+  return (
+    <div className={disabled ? "opacity-60" : ""}>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-gradient-gold">{title}</h3>
+        {headerExtra}
+      </div>
+      <div className="overflow-auto rounded-lg border border-border/50">
+        <Table className="min-w-[560px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Validity</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Featured</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {bundles.map((b) => (
+              <TableRow key={b.id}>
+                <TableCell className="font-medium">{b.name}</TableCell>
+                <TableCell>{b.gb} GB</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{b.validity}</TableCell>
+                <TableCell className="font-semibold">{formatGHS(b.price)}</TableCell>
+                <TableCell>
+                  {b.popular ? (
+                    <Badge className="gradient-gold text-primary-foreground">
+                      <Star className="mr-1 h-3 w-3" /> Popular
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => onEdit(b)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => onDelete(b.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            {bundles.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                  No bundles in this group.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
@@ -514,3 +591,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+
