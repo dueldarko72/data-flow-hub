@@ -42,6 +42,8 @@ import {
   upsertUserBundle,
   deleteUserBundle,
   resetUserBundles,
+  loadUserSlowEnabled,
+  setUserSlowEnabled,
   type AdminUser,
 } from "@/lib/admin-data";
 import { toast } from "sonner";
