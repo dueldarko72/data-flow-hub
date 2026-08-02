@@ -78,7 +78,7 @@ function AuthPage() {
           <div className="grid h-12 w-12 place-items-center rounded-2xl gradient-gold glow">
             <Wifi className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="mt-4 font-display text-2xl font-bold">Welcome to DataHub</h1>
+          <h1 className="mt-4 font-display text-2xl font-bold">Welcome to DataFlex</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Ghana's fastest MTN data marketplace
           </p>

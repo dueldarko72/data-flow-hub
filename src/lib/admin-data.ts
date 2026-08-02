@@ -226,8 +226,8 @@ export interface AdminSettings {
 }
 
 const DEFAULT_SETTINGS: AdminSettings = {
-  storeName: "DataHub",
-  supportEmail: "support@datahub.gh",
+  storeName: "DataFlex",
+  supportEmail: "support@dataflex.gh",
   supportPhone: "+233 24 000 0000",
   momoNumber: "0244000000",
   autoApprove: false,

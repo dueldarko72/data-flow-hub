@@ -55,7 +55,7 @@ export function AppSidebar() {
             <Wifi className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-display text-lg font-bold group-data-[collapsible=icon]:hidden">
-            DataHub
+            DataFlex
           </span>
         </Link>
       </SidebarHeader>
