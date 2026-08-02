@@ -284,10 +284,13 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
   const [isNew, setIsNew] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [slowEnabled, setSlowEnabled] = useState(true);
 
   useEffect(() => {
-    if (user) setBundles(loadUserBundles(user.id));
-    else {
+    if (user) {
+      setBundles(loadUserBundles(user.id));
+      setSlowEnabled(loadUserSlowEnabled(user.id));
+    } else {
       setBundles([]);
       setEditing(null);
     }
@@ -304,6 +307,7 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
       price: 0,
       validity: "24 hours",
       popular: false,
+      group: "fast",
     });
     setIsNew(true);
   };
