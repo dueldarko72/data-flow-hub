@@ -32,6 +32,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
+import { messageFor } from "@/lib/security";
 import { formatGHS, loadOrders, type Bundle, type Order } from "@/lib/mock-data";
 import {
   DEFAULT_USER_CATALOG,
@@ -72,7 +73,7 @@ const NAV_LINKS = [
 function Landing() {
   const [menu, setMenu] = useState(false);
   const { theme, toggle } = useTheme();
-  const { user, signIn, signUp } = useAuth();
+  const { user, signInWithPhone, registerQuick } = useAuth();
   const navigate = useNavigate();
   const [authOpen, setAuthOpen] = useState(false);
   const [mode, setMode] = useState<"signup" | "login">("login");
@@ -162,12 +163,12 @@ function Landing() {
     if (!form.name || !form.email || !form.phone) return;
     setSubmitting(true);
     try {
+      await registerQuick(form.name, form.email, form.phone);
       ensureAdminUser({ name: form.name, email: form.email, phone: form.phone });
-      await signUp(form.name, form.email, form.phone, "password");
       toast.success("Account created");
       afterAuth();
-    } catch {
-      toast.error("Sign up failed. Please try again.");
+    } catch (err) {
+      toast.error(messageFor(err, "Sign up failed. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -178,12 +179,11 @@ function Landing() {
     if (!form.name || !form.phone) return;
     setSubmitting(true);
     try {
-      const syntheticEmail = `${form.name.toLowerCase().replace(/\s+/g, ".")}@dataflex.gh`;
-      await signIn(syntheticEmail, "password", { name: form.name, phone: form.phone });
+      await signInWithPhone(form.name, form.phone);
       toast.success("Welcome back");
       afterAuth();
-    } catch {
-      toast.error("Log in failed. Please try again.");
+    } catch (err) {
+      toast.error(messageFor(err, "Log in failed. Please try again."));
     } finally {
       setSubmitting(false);
     }
