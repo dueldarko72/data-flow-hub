@@ -26,8 +26,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/status-badge";
-import { loadOrders, formatGHS, type Order, type OrderStatus ,
+import {
+  loadOrders,
+  formatGHS,
   deliveryLabel,
+  type Order,
+  type OrderStatus,
 } from "@/lib/mock-data";
 import { updateOrderStatus } from "@/lib/admin-data";
 import { toast } from "sonner";
@@ -128,7 +132,12 @@ function AdminOrders() {
               filtered.map((o) => (
                 <TableRow key={o.id}>
                   <TableCell className="whitespace-nowrap font-mono text-xs">{o.reference}</TableCell>
-                  <TableCell className="whitespace-nowrap text-sm font-medium">{o.bundleName}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm font-medium">
+                    {o.bundleName}
+                    <span className="block text-[10px] font-normal text-muted-foreground">
+                      {deliveryLabel(o.group)}
+                    </span>
+                  </TableCell>
                   <TableCell className="whitespace-nowrap text-sm">{o.recipient}</TableCell>
                   <TableCell className="whitespace-nowrap text-sm font-semibold">{formatGHS(o.amount)}</TableCell>
                   <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
