@@ -394,7 +394,12 @@ function UserBundlesDialog({ user, onClose }: { user: AdminUser | null; onClose:
               }
               disabled={!slowEnabled}
             />
+            <p className="text-xs text-muted-foreground">
+              “1hr – 2hr delivery” bundles are shared: any edit here (or in Manage › Bundles)
+              instantly applies to every customer. Fast delivery pricing stays per-customer.
+            </p>
           </div>
+
 
 
           <DialogFooter>
