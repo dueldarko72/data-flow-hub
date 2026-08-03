@@ -18,6 +18,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
+import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminBundlesRouteImport } from './routes/admin.bundles'
 import { Route as AdminBroadcastRouteImport } from './routes/admin.broadcast'
 import { Route as AppSupportRouteImport } from './routes/_app.support'
@@ -69,6 +70,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
 const AdminOrdersRoute = AdminOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminBundlesRoute = AdminBundlesRouteImport.update({
@@ -125,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof AppSupportRoute
   '/admin/broadcast': typeof AdminBroadcastRoute
   '/admin/bundles': typeof AdminBundlesRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/support': typeof AppSupportRoute
   '/admin/broadcast': typeof AdminBroadcastRoute
   '/admin/bundles': typeof AdminBundlesRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/_app/support': typeof AppSupportRoute
   '/admin/broadcast': typeof AdminBroadcastRoute
   '/admin/bundles': typeof AdminBundlesRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -182,6 +191,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/admin/broadcast'
     | '/admin/bundles'
+    | '/admin/notifications'
     | '/admin/orders'
     | '/admin/settings'
     | '/admin/users'
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/admin/broadcast'
     | '/admin/bundles'
+    | '/admin/notifications'
     | '/admin/orders'
     | '/admin/settings'
     | '/admin/users'
@@ -218,6 +229,7 @@ export interface FileRouteTypes {
     | '/_app/support'
     | '/admin/broadcast'
     | '/admin/bundles'
+    | '/admin/notifications'
     | '/admin/orders'
     | '/admin/settings'
     | '/admin/users'
@@ -295,6 +307,13 @@ declare module '@tanstack/react-router' {
       path: '/orders'
       fullPath: '/admin/orders'
       preLoaderRoute: typeof AdminOrdersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/bundles': {
@@ -379,6 +398,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 interface AdminRouteChildren {
   AdminBroadcastRoute: typeof AdminBroadcastRoute
   AdminBundlesRoute: typeof AdminBundlesRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -388,6 +408,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminBroadcastRoute: AdminBroadcastRoute,
   AdminBundlesRoute: AdminBundlesRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
