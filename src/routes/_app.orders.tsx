@@ -27,7 +27,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/status-badge";
-import { loadOrders, formatGHS, type Order, type OrderStatus } from "@/lib/mock-data";
+import { loadOrders, formatGHS, deliveryLabel, type Order, type OrderStatus } from "@/lib/mock-data";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/orders")({
@@ -63,6 +64,7 @@ Reference: ${o.reference}
 Date: ${new Date(o.createdAt).toLocaleString()}
 
 Bundle: ${o.bundleName}
+Delivery: ${deliveryLabel(o.group)}
 Network: ${o.network}
 Size: ${o.gb}GB
 Recipient: ${o.recipient}
@@ -136,6 +138,7 @@ Status: ${o.status.toUpperCase()}
               <TableRow>
                 <TableHead>Reference</TableHead>
                 <TableHead>Bundle</TableHead>
+                <TableHead className="hidden sm:table-cell">Delivery</TableHead>
                 <TableHead className="hidden md:table-cell">Recipient</TableHead>
                 <TableHead className="hidden lg:table-cell">Date</TableHead>
                 <TableHead>Amount</TableHead>
@@ -147,7 +150,24 @@ Status: ${o.status.toUpperCase()}
               {filtered.map((o) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-mono text-xs">{o.reference}</TableCell>
-                  <TableCell className="font-medium">{o.bundleName}</TableCell>
+                  <TableCell className="font-medium">
+                    {o.bundleName}
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground sm:hidden">
+                      {deliveryLabel(o.group)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <Badge
+                      variant="outline"
+                      className={
+                        o.group === "slow"
+                          ? "whitespace-nowrap border-muted-foreground/30 text-muted-foreground"
+                          : "whitespace-nowrap border-primary/40 text-primary"
+                      }
+                    >
+                      {deliveryLabel(o.group)}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="hidden md:table-cell">{o.recipient}</TableCell>
                   <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
                     {new Date(o.createdAt).toLocaleString()}
@@ -171,6 +191,7 @@ Status: ${o.status.toUpperCase()}
                           <div className="space-y-2 text-sm">
                             <Row label="Reference" value={o.reference} />
                             <Row label="Bundle" value={`${o.bundleName} (${o.gb}GB)`} />
+                            <Row label="Delivery" value={deliveryLabel(o.group)} />
                             <Row label="Network" value={o.network} />
                             <Row label="Recipient" value={o.recipient} />
                             <Row label="Amount" value={formatGHS(o.amount)} />

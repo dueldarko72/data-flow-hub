@@ -45,6 +45,7 @@ export function updateOrderStatus(id: string, status: OrderStatus) {
     createdAt: new Date().toISOString(),
     read: false,
     type: "order",
+    audience: "all",
   });
 }
 
