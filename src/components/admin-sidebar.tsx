@@ -5,6 +5,8 @@ import {
   Users,
   Receipt,
   Megaphone,
+  Bell,
+  Banknote,
   Settings,
   LogOut,
   Shield,
@@ -35,6 +37,8 @@ const items = [
   { title: "Orders", url: "/admin/orders", icon: Receipt },
   { title: "Bundles", url: "/admin/bundles", icon: Package },
   { title: "Users", url: "/admin/users", icon: Users },
+  { title: "Notifications", url: "/admin/notifications", icon: Bell },
+  { title: "Withdraw", url: "/admin/withdraw", icon: Banknote },
   { title: "Broadcast", url: "/admin/broadcast", icon: Megaphone },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ] as const;

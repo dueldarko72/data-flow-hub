@@ -1,9 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Bell, CheckCheck, Megaphone, Package, Settings } from "lucide-react";
+import { Bell, CheckCheck, CreditCard, Megaphone, Package, Settings } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { loadNotifications, saveNotifications, type AppNotification } from "@/lib/mock-data";
+import {
+  loadNotifications,
+  loadNotificationsFor,
+  saveNotifications,
+  type AppNotification,
+} from "@/lib/mock-data";
 import { formatDistanceToNow } from "date-fns";
 
 export const Route = createFileRoute("/_app/notifications")({
@@ -14,26 +19,28 @@ const icons = {
   order: Package,
   announcement: Megaphone,
   system: Settings,
+  payment: CreditCard,
 } as const;
 
 function NotificationsPage() {
   const [items, setItems] = useState<AppNotification[]>([]);
 
   useEffect(() => {
-    setItems(loadNotifications());
+    setItems(loadNotificationsFor("customer"));
   }, []);
 
-  const markAll = () => {
-    const upd = items.map((n) => ({ ...n, read: true }));
-    setItems(upd);
-    saveNotifications(upd);
+  const persist = (updater: (all: AppNotification[]) => AppNotification[]) => {
+    saveNotifications(updater(loadNotifications()));
+    setItems(loadNotificationsFor("customer"));
   };
 
-  const toggle = (id: string) => {
-    const upd = items.map((n) => (n.id === id ? { ...n, read: true } : n));
-    setItems(upd);
-    saveNotifications(upd);
-  };
+  const markAll = () =>
+    persist((all) =>
+      all.map((n) => ((n.audience ?? "customer") !== "admin" ? { ...n, read: true } : n)),
+    );
+
+  const toggle = (id: string) =>
+    persist((all) => all.map((n) => (n.id === id ? { ...n, read: true } : n)));
 
   const unread = items.filter((n) => !n.read).length;
 
@@ -64,7 +71,7 @@ function NotificationsPage() {
         ) : (
           <div className="divide-y divide-border/50">
             {items.map((n) => {
-              const Icon = icons[n.type];
+              const Icon = icons[n.type] ?? Settings;
               return (
                 <button
                   key={n.id}

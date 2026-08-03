@@ -15,6 +15,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminWithdrawRouteImport } from './routes/admin.withdraw'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
@@ -55,6 +56,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminWithdrawRoute = AdminWithdrawRouteImport.update({
+  id: '/withdraw',
+  path: '/withdraw',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/withdraw': typeof AdminWithdrawRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/withdraw': typeof AdminWithdrawRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/withdraw': typeof AdminWithdrawRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/withdraw'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/withdraw'
     | '/admin'
   id:
     | '__root__'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/withdraw'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -286,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/withdraw': {
+      id: '/admin/withdraw'
+      path: '/withdraw'
+      fullPath: '/admin/withdraw'
+      preLoaderRoute: typeof AdminWithdrawRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/users': {
@@ -402,6 +421,7 @@ interface AdminRouteChildren {
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminWithdrawRoute: typeof AdminWithdrawRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -412,6 +432,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminOrdersRoute: AdminOrdersRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AdminWithdrawRoute: AdminWithdrawRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
