@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
+import { messageFor } from "@/lib/security";
 import { toast } from "sonner";
 
 const searchSchema = z.object({
@@ -38,8 +39,8 @@ function AuthPage() {
       await signIn(String(fd.get("email")), String(fd.get("password")));
       toast.success("Welcome back!");
       navigate({ to: "/dashboard" });
-    } catch {
-      toast.error("Sign in failed");
+    } catch (err) {
+      toast.error(messageFor(err, "Sign in failed"));
     } finally {
       setLoading(false);
     }
@@ -58,8 +59,8 @@ function AuthPage() {
       );
       toast.success("Account created!");
       navigate({ to: "/dashboard" });
-    } catch {
-      toast.error("Sign up failed");
+    } catch (err) {
+      toast.error(messageFor(err, "Sign up failed"));
     } finally {
       setLoading(false);
     }
@@ -162,7 +163,7 @@ function PasswordInput({ id }: { id: string }) {
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
-      <Input id={id} name="password" type={show ? "text" : "password"} required minLength={6} className="pr-10" />
+      <Input id={id} name="password" type={show ? "text" : "password"} required minLength={8} className="pr-10" />
       <button
         type="button"
         onClick={() => setShow((s) => !s)}

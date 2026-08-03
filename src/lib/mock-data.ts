@@ -32,7 +32,12 @@ export interface Order {
   status: OrderStatus;
   createdAt: string;
   paymentMethod: string;
+  /** Delivery group: "fast" = Fast delivery, "slow" = 1hr - 2hr delivery */
+  group?: BundleGroup;
 }
+
+export const deliveryLabel = (group?: BundleGroup) =>
+  group === "slow" ? "1hr – 2hr delivery" : "Fast delivery";
 
 export interface AppNotification {
   id: string;
@@ -40,7 +45,9 @@ export interface AppNotification {
   message: string;
   createdAt: string;
   read: boolean;
-  type: "order" | "announcement" | "system";
+  type: "order" | "announcement" | "system" | "payment";
+  /** Who should see this notification. Defaults to "customer". */
+  audience?: "customer" | "admin" | "all";
 }
 
 export const BUNDLES: Bundle[] = [
@@ -148,6 +155,13 @@ export function saveNotifications(n: AppNotification[]) {
   try {
     localStorage.setItem(NOTIF_KEY, JSON.stringify(n));
   } catch {}
+}
+
+export function loadNotificationsFor(audience: "customer" | "admin") {
+  return loadNotifications().filter((n) => {
+    const a = n.audience ?? "customer";
+    return a === "all" || a === audience;
+  });
 }
 
 export function pushNotification(n: AppNotification) {

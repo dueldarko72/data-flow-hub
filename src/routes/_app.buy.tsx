@@ -16,6 +16,7 @@ import {
 import { formatGHS, addOrder, pushNotification, type Bundle } from "@/lib/mock-data";
 import { DEFAULT_USER_CATALOG, ensureAdminUser } from "@/lib/admin-data";
 import { useAuth } from "@/lib/auth";
+import { messageFor } from "@/lib/security";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/buy")({
@@ -26,7 +27,7 @@ type Status = "idle" | "processing" | "success" | "error";
 
 function BuyPage() {
   const navigate = useNavigate();
-  const { user, signUp } = useAuth();
+  const { user, registerQuick } = useAuth();
   const [bundle, setBundle] = useState<Bundle | null>(null);
   const [method, setMethod] = useState("momo");
   const [status, setStatus] = useState<Status>("idle");
@@ -60,6 +61,15 @@ function BuyPage() {
     if (failed) {
       setStatus("error");
       setErrorMsg("Your Mobile Money payment could not be confirmed. No money was deducted.");
+      pushNotification({
+        id: crypto.randomUUID(),
+        title: "Payment failed",
+        message: `${bundle.name} to ${recipient} — Mobile Money payment was not confirmed.`,
+        createdAt: new Date().toISOString(),
+        read: false,
+        type: "payment",
+        audience: "all",
+      });
       toast.error("Payment failed — you can retry.");
       return;
     }
@@ -76,6 +86,7 @@ function BuyPage() {
       amount: bundle.price,
       recipient,
       status: "pending",
+      group: bundle.group ?? "fast",
       createdAt: new Date().toISOString(),
       paymentMethod: method === "momo" ? "MTN MoMo" : method,
     });
@@ -86,6 +97,7 @@ function BuyPage() {
       createdAt: new Date().toISOString(),
       read: false,
       type: "order",
+      audience: "all",
     });
     try {
       sessionStorage.removeItem("datahub-selected-bundle");
@@ -99,13 +111,13 @@ function BuyPage() {
     if (!form.name || !form.email || !form.phone) return;
     setSubmitting(true);
     try {
+      await registerQuick(form.name, form.email, form.phone);
       ensureAdminUser({ name: form.name, email: form.email, phone: form.phone });
-      await signUp(form.name, form.email, form.phone, "password");
       toast.success("Signed in with the new number");
       setChangeOpen(false);
       setStatus("idle");
-    } catch {
-      toast.error("Could not sign in. Please try again.");
+    } catch (err) {
+      toast.error(messageFor(err, "Could not sign in. Please try again."));
     } finally {
       setSubmitting(false);
     }
