@@ -1,4 +1,4 @@
-import { BUNDLES, type Bundle, loadOrders, saveOrders, type Order, type OrderStatus, pushNotification } from "./mock-data";
+import { type Bundle, loadOrders, saveOrders, type Order, type OrderStatus, pushNotification } from "./mock-data";
 
 const BUNDLES_KEY = "datahub-bundles";
 const USERS_KEY = "datahub-admin-users";
@@ -9,8 +9,9 @@ export function loadBundles(): Bundle[] {
     const raw = localStorage.getItem(BUNDLES_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  saveBundles(BUNDLES);
-  return BUNDLES;
+  const seed = DEFAULT_USER_CATALOG.map((b) => ({ ...b }));
+  saveBundles(seed);
+  return seed;
 }
 
 export function saveBundles(b: Bundle[]) {
@@ -125,34 +126,55 @@ function saveAllUserBundles(m: UserBundleMap) {
   } catch {}
 }
 
+/**
+ * A customer's catalogue = their own "Fast delivery" bundles (per-user pricing)
+ * + the shared "1hr - 2hr delivery" bundles managed by the admin globally, so
+ * any admin change to the slow group reflects on every customer automatically.
+ */
 export function loadUserBundles(userId: string): Bundle[] {
   const all = loadAllUserBundles();
-  if (all[userId]) return all[userId];
-  const clone = DEFAULT_USER_CATALOG.map((b) => ({ ...b }));
-  all[userId] = clone;
-  saveAllUserBundles(all);
-  return clone;
+  if (!all[userId]) {
+    all[userId] = DEFAULT_USER_CATALOG.filter((b) => b.group !== "slow").map((b) => ({ ...b }));
+    saveAllUserBundles(all);
+  }
+  const fast = all[userId].filter((b) => b.group !== "slow");
+  const slow = loadBundles().filter((b) => b.group === "slow");
+  return [...fast, ...slow];
 }
 
+/** Stores per-user fast bundles; slow bundles are written to the shared catalogue. */
 export function saveUserBundles(userId: string, bundles: Bundle[]) {
   const all = loadAllUserBundles();
-  all[userId] = bundles;
+  all[userId] = bundles.filter((b) => b.group !== "slow");
   saveAllUserBundles(all);
+  const slow = bundles.filter((b) => b.group === "slow");
+  const globalFast = loadBundles().filter((b) => b.group !== "slow");
+  saveBundles([...globalFast, ...slow]);
 }
 
 export function upsertUserBundle(userId: string, b: Bundle) {
-  const list = loadUserBundles(userId);
+  if (b.group === "slow") {
+    upsertBundle(b);
+    return;
+  }
+  const all = loadAllUserBundles();
+  const list = all[userId] ?? [];
   const i = list.findIndex((x) => x.id === b.id);
   if (i >= 0) list[i] = b;
   else list.unshift(b);
-  saveUserBundles(userId, list);
+  all[userId] = list;
+  saveAllUserBundles(all);
 }
 
 export function deleteUserBundle(userId: string, bundleId: string) {
-  saveUserBundles(
-    userId,
-    loadUserBundles(userId).filter((b) => b.id !== bundleId),
-  );
+  const globalSlow = loadBundles().filter((x) => x.group === "slow");
+  if (globalSlow.some((x) => x.id === bundleId)) {
+    deleteBundle(bundleId);
+    return;
+  }
+  const all = loadAllUserBundles();
+  all[userId] = (all[userId] ?? []).filter((b) => b.id !== bundleId);
+  saveAllUserBundles(all);
 }
 
 export function resetUserBundles(userId: string) {
@@ -297,4 +319,62 @@ export function computeAnalytics(orders: Order[]) {
   }
   const topBundles = [...bundleMap.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   return { revenue, gbSold, completed: completed.length, days, topBundles };
+}
+
+
+/* ===================== Withdrawals ===================== */
+
+export interface Withdrawal {
+  id: string;
+  amount: number;
+  destination: string;
+  createdAt: string;
+  status: "completed";
+}
+
+const WITHDRAWALS_KEY = "dataflex-withdrawals";
+
+export function loadWithdrawals(): Withdrawal[] {
+  try {
+    const raw = localStorage.getItem(WITHDRAWALS_KEY);
+    if (raw) return JSON.parse(raw) as Withdrawal[];
+  } catch {}
+  return [];
+}
+
+export function saveWithdrawals(list: Withdrawal[]) {
+  try {
+    localStorage.setItem(WITHDRAWALS_KEY, JSON.stringify(list));
+  } catch {}
+}
+
+export function availableBalance(orders: Order[]) {
+  const revenue = orders
+    .filter((o) => o.status === "completed")
+    .reduce((s, o) => s + o.amount, 0);
+  const withdrawn = loadWithdrawals().reduce((s, w) => s + w.amount, 0);
+  return Math.max(0, revenue - withdrawn);
+}
+
+export function recordWithdrawal(amount: number, destination: string): Withdrawal {
+  const w: Withdrawal = {
+    id: crypto.randomUUID(),
+    amount,
+    destination,
+    createdAt: new Date().toISOString(),
+    status: "completed",
+  };
+  const list = loadWithdrawals();
+  list.unshift(w);
+  saveWithdrawals(list);
+  pushNotification({
+    id: crypto.randomUUID(),
+    title: "Withdrawal processed",
+    message: `GHS ${amount.toFixed(2)} sent to ${destination}.`,
+    createdAt: new Date().toISOString(),
+    read: false,
+    type: "system",
+    audience: "admin",
+  });
+  return w;
 }
