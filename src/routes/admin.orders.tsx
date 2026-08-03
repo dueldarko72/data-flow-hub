@@ -26,7 +26,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/status-badge";
-import { loadOrders, formatGHS, type Order, type OrderStatus } from "@/lib/mock-data";
+import { loadOrders, formatGHS, type Order, type OrderStatus ,
+  deliveryLabel,
+} from "@/lib/mock-data";
 import { updateOrderStatus } from "@/lib/admin-data";
 import { toast } from "sonner";
 
