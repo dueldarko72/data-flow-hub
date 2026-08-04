@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
+import { Switch } from "@/components/ui/switch";
+import { Bell } from "lucide-react";
+import {
+  CHANNELS,
+  TOPICS,
+  loadNotificationPrefs,
+  saveNotificationPrefs,
+  type NotificationChannel,
+  type NotificationPrefs,
+  type NotificationTopic,
+} from "@/lib/notification-prefs";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({
@@ -113,6 +124,61 @@ function ProfilePage() {
           <Button type="submit" variant="outline">Update password</Button>
         </form>
       </Card>
+
+      <NotificationPreferences userId={user.email?.toLowerCase() ?? "guest"} />
     </div>
+  );
+}
+
+function NotificationPreferences({ userId }: { userId: string }) {
+  const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
+
+  useEffect(() => {
+    setPrefs(loadNotificationPrefs(userId));
+  }, [userId]);
+
+  const toggle = (topic: NotificationTopic, channel: NotificationChannel, value: boolean) => {
+    if (!prefs) return;
+    const next: NotificationPrefs = {
+      ...prefs,
+      [topic]: { ...prefs[topic], [channel]: value },
+    };
+    setPrefs(next);
+    saveNotificationPrefs(userId, next);
+    toast.success("Notification preferences updated");
+  };
+
+  if (!prefs) return null;
+
+  return (
+    <Card className="glass border-0 p-6">
+      <div className="flex items-center gap-2">
+        <Bell className="h-4 w-4 text-primary" />
+        <h2 className="font-display text-lg font-semibold">Notification preferences</h2>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Choose how you want to hear about delivery updates and payment failures.
+      </p>
+      <Separator className="my-4" />
+      <div className="space-y-5">
+        {TOPICS.map((t) => (
+          <div key={t.key} className="rounded-xl border border-border/50 p-4">
+            <div className="text-sm font-medium">{t.label}</div>
+            <div className="text-xs text-muted-foreground">{t.description}</div>
+            <div className="mt-3 flex flex-wrap gap-4">
+              {CHANNELS.map((c) => (
+                <label key={c.key} className="flex items-center gap-2 text-xs">
+                  <Switch
+                    checked={prefs[t.key][c.key]}
+                    onCheckedChange={(v) => toggle(t.key, c.key, v)}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
