@@ -143,6 +143,7 @@ function saveAllUserBundles(m: UserBundleMap) {
   try {
     localStorage.setItem(USER_BUNDLES_KEY, JSON.stringify(m));
   } catch {}
+  announceCatalogChange();
 }
 
 /**
@@ -169,20 +170,28 @@ export function saveUserBundles(userId: string, bundles: Bundle[]) {
   const slow = bundles.filter((b) => b.group === "slow");
   const globalFast = loadBundles().filter((b) => b.group !== "slow");
   saveBundles([...globalFast, ...slow]);
+  recordAudit("bundle", "Customer catalogue saved", `user ${userId}`);
 }
 
 export function upsertUserBundle(userId: string, b: Bundle) {
   if (b.group === "slow") {
+    // Shared group — the change applies to every customer.
     upsertBundle(b);
     return;
   }
   const all = loadAllUserBundles();
   const list = all[userId] ?? [];
   const i = list.findIndex((x) => x.id === b.id);
+  const isNew = i < 0;
   if (i >= 0) list[i] = b;
   else list.unshift(b);
   all[userId] = list;
   saveAllUserBundles(all);
+  recordAudit(
+    "bundle",
+    isNew ? "Customer bundle added" : "Customer bundle updated",
+    `user ${userId} • ${b.name} • ${b.gb}GB • GHS ${b.price}`,
+  );
 }
 
 export function deleteUserBundle(userId: string, bundleId: string) {
@@ -194,6 +203,7 @@ export function deleteUserBundle(userId: string, bundleId: string) {
   const all = loadAllUserBundles();
   all[userId] = (all[userId] ?? []).filter((b) => b.id !== bundleId);
   saveAllUserBundles(all);
+  recordAudit("bundle", "Customer bundle deleted", `user ${userId} • ${bundleId}`);
 }
 
 export function resetUserBundles(userId: string) {
@@ -201,6 +211,7 @@ export function resetUserBundles(userId: string) {
   delete all[userId];
   saveAllUserBundles(all);
   setUserSlowEnabled(userId, true);
+  recordAudit("bundle", "Customer catalogue reset", `user ${userId}`);
 }
 
 /** "1hr – 2hr delivery" availability per user — on by default. */
@@ -222,6 +233,12 @@ export function setUserSlowEnabled(userId: string, enabled: boolean) {
     map[userId] = enabled;
     localStorage.setItem(USER_SLOW_KEY, JSON.stringify(map));
   } catch {}
+  announceCatalogChange();
+  recordAudit(
+    "bundle",
+    `1hr – 2hr delivery ${enabled ? "enabled" : "disabled"}`,
+    `user ${userId}`,
+  );
 }
 
 /** Find (or create) the admin-side customer record for a signed-in visitor. */
