@@ -1,4 +1,13 @@
 import { type Bundle, loadOrders, saveOrders, type Order, type OrderStatus, pushNotification } from "./mock-data";
+import { recordAudit } from "./audit";
+
+/** Notify open tabs (e.g. the customer landing page) that catalogues changed. */
+function announceCatalogChange() {
+  try {
+    localStorage.setItem("dataflex-catalog-version", String(Date.now()));
+    window.dispatchEvent(new CustomEvent("dataflex:catalog-changed"));
+  } catch {}
+}
 
 const BUNDLES_KEY = "datahub-bundles";
 const USERS_KEY = "datahub-admin-users";
