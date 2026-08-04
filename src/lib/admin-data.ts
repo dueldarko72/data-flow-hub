@@ -65,6 +65,7 @@ export function updateOrderStatus(id: string, status: OrderStatus) {
     type: "order",
     audience: "all",
   });
+  recordAudit("user", `Order marked ${status}`, `${orders[i].reference} • ${orders[i].bundleName}`);
 }
 
 export interface AdminUser {
@@ -412,5 +413,6 @@ export function recordWithdrawal(amount: number, destination: string): Withdrawa
     type: "system",
     audience: "admin",
   });
+  recordAudit("withdrawal", "Withdrawal processed", `GHS ${amount.toFixed(2)} → ${destination}`);
   return w;
 }
