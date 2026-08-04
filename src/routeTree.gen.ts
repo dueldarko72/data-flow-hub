@@ -22,6 +22,7 @@ import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminBundlesRouteImport } from './routes/admin.bundles'
 import { Route as AdminBroadcastRouteImport } from './routes/admin.broadcast'
+import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AppSupportRouteImport } from './routes/_app.support'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppOrdersRouteImport } from './routes/_app.orders'
@@ -93,6 +94,11 @@ const AdminBroadcastRoute = AdminBroadcastRouteImport.update({
   path: '/broadcast',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AppSupportRoute = AppSupportRouteImport.update({
   id: '/support',
   path: '/support',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/orders': typeof AppOrdersRoute
   '/profile': typeof AppProfileRoute
   '/support': typeof AppSupportRoute
+  '/admin/audit': typeof AdminAuditRoute
   '/admin/broadcast': typeof AdminBroadcastRoute
   '/admin/bundles': typeof AdminBundlesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/orders': typeof AppOrdersRoute
   '/profile': typeof AppProfileRoute
   '/support': typeof AppSupportRoute
+  '/admin/audit': typeof AdminAuditRoute
   '/admin/broadcast': typeof AdminBroadcastRoute
   '/admin/bundles': typeof AdminBundlesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -176,6 +184,7 @@ export interface FileRoutesById {
   '/_app/orders': typeof AppOrdersRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/support': typeof AppSupportRoute
+  '/admin/audit': typeof AdminAuditRoute
   '/admin/broadcast': typeof AdminBroadcastRoute
   '/admin/bundles': typeof AdminBundlesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -198,6 +207,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/profile'
     | '/support'
+    | '/admin/audit'
     | '/admin/broadcast'
     | '/admin/bundles'
     | '/admin/notifications'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/profile'
     | '/support'
+    | '/admin/audit'
     | '/admin/broadcast'
     | '/admin/bundles'
     | '/admin/notifications'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/_app/orders'
     | '/_app/profile'
     | '/_app/support'
+    | '/admin/audit'
     | '/admin/broadcast'
     | '/admin/bundles'
     | '/admin/notifications'
@@ -349,6 +361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBroadcastRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/_app/support': {
       id: '/_app/support'
       path: '/support'
@@ -415,6 +434,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AdminRouteChildren {
+  AdminAuditRoute: typeof AdminAuditRoute
   AdminBroadcastRoute: typeof AdminBroadcastRoute
   AdminBundlesRoute: typeof AdminBundlesRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
@@ -426,6 +446,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAuditRoute: AdminAuditRoute,
   AdminBroadcastRoute: AdminBroadcastRoute,
   AdminBundlesRoute: AdminBundlesRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
