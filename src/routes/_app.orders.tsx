@@ -202,6 +202,8 @@ Status: ${o.status.toUpperCase()}
                               <StatusBadge status={o.status} />
                             </div>
                           </div>
+                          <DeliveryTimeline order={o} />
+
                           <Button
                             onClick={() => downloadReceipt(o)}
                             className="w-full gradient-gold text-primary-foreground"
