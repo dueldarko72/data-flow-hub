@@ -329,3 +329,89 @@ export function messageFor(err: unknown, fallback = "Something went wrong") {
   if (err instanceof Error) return err.message;
   return fallback;
 }
+
+/* ------------------------------------------------------------------ *
+ * Two-factor authentication (step-up challenge for admin actions)
+ * ------------------------------------------------------------------ */
+
+const TWOFA_KEY = "dataflex-2fa-challenge";
+const TWOFA_TTL_MS = 5 * 60 * 1000;
+
+export interface TwoFactorChallenge {
+  /** What the challenge protects, e.g. "withdrawal" or "bundle-edit". */
+  purpose: string;
+  salt: string;
+  hash: string;
+  expiresAt: number;
+  /** Masked destination shown to the admin (never the raw code). */
+  sentTo: string;
+}
+
+const maskDestination = (value: string) => {
+  const v = value.trim();
+  if (v.includes("@")) {
+    const [u, d] = v.split("@");
+    return `${u.slice(0, 2)}${"•".repeat(Math.max(1, u.length - 2))}@${d}`;
+  }
+  return `${"•".repeat(Math.max(0, v.length - 3))}${v.slice(-3)}`;
+};
+
+/** Creates a 6-digit step-up code. Returns the code so the UI can deliver it. */
+export async function issueTwoFactorCode(purpose: string, destination: string) {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  const code = String(buf[0] % 1_000_000).padStart(6, "0");
+  const { salt, hash } = await hashSecret(code);
+  const challenge: TwoFactorChallenge = {
+    purpose,
+    salt,
+    hash,
+    expiresAt: Date.now() + TWOFA_TTL_MS,
+    sentTo: maskDestination(destination || "your registered contact"),
+  };
+  try {
+    const map = JSON.parse(sessionStorage.getItem(TWOFA_KEY) ?? "{}");
+    map[purpose] = challenge;
+    sessionStorage.setItem(TWOFA_KEY, JSON.stringify(map));
+  } catch {}
+  return { code, sentTo: challenge.sentTo, expiresAt: challenge.expiresAt };
+}
+
+function readChallenge(purpose: string): TwoFactorChallenge | undefined {
+  try {
+    return JSON.parse(sessionStorage.getItem(TWOFA_KEY) ?? "{}")[purpose];
+  } catch {
+    return undefined;
+  }
+}
+
+function clearChallenge(purpose: string) {
+  try {
+    const map = JSON.parse(sessionStorage.getItem(TWOFA_KEY) ?? "{}");
+    delete map[purpose];
+    sessionStorage.setItem(TWOFA_KEY, JSON.stringify(map));
+  } catch {}
+}
+
+export async function verifyTwoFactorCode(purpose: string, code: string) {
+  const clean = z.string().regex(/^\d{6}$/, "Enter the 6-digit code").parse(code.trim());
+  const throttleId = `2fa:${purpose}`;
+  assertNotLocked(throttleId);
+  const challenge = readChallenge(purpose);
+  if (!challenge || challenge.expiresAt < Date.now()) {
+    clearChallenge(purpose);
+    throw new Error("Your verification code expired. Request a new one.");
+  }
+  const ok = await verifySecret(clean, challenge.salt, challenge.hash);
+  if (!ok) {
+    const left = recordFailure(throttleId);
+    throw new Error(
+      left > 0
+        ? `Incorrect verification code. ${left} attempt(s) left.`
+        : "Too many incorrect codes. Locked for 15 minutes.",
+    );
+  }
+  clearFailures(throttleId);
+  clearChallenge(purpose);
+  return true;
+}

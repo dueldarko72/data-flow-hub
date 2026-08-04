@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, Users, ShoppingBag, Database, ArrowUpRight } from "lucide-react";
+import { TrendingUp, Users, ShoppingBag, Database, ArrowUpRight, Copy, Check, ExternalLink, Link2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Area,
   AreaChart,
@@ -25,6 +26,19 @@ export const Route = createFileRoute("/admin/")({
 function AdminOverview() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [copied, setCopied] = useState(false);
+  const customerUrl = typeof window !== "undefined" ? window.location.origin + "/" : "/";
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(customerUrl);
+      setCopied(true);
+      toast.success("Customer link copied");
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error("Copy failed");
+    }
+  };
 
   useEffect(() => {
     setOrders(loadOrders());
@@ -39,6 +53,42 @@ function AdminOverview() {
         <h1 className="font-display text-2xl font-bold sm:text-3xl">Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">Real-time performance across the marketplace.</p>
       </div>
+
+      <Card className="glass border-0 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10">
+              <Link2 className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">Customer link</div>
+              <a
+                href={customerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block truncate font-mono text-xs text-muted-foreground hover:text-primary"
+              >
+                {customerUrl}
+              </a>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={copyLink} className="gap-1">
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+            <Button size="sm" asChild className="gradient-gold gap-1 text-primary-foreground">
+              <a href={customerUrl} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-3.5 w-3.5" /> Open home page
+              </a>
+            </Button>
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Always opens the live home page — every bundle, pricing or availability change you make
+          shows up there immediately.
+        </p>
+      </Card>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
 

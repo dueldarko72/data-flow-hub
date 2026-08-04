@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/status-badge";
 import { loadOrders, formatGHS, deliveryLabel, type Order, type OrderStatus } from "@/lib/mock-data";
+import { deliveryTimeline, estimatedDelivery, formatCountdown } from "@/lib/delivery";
+import { CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
@@ -43,6 +45,16 @@ function OrdersPage() {
 
   useEffect(() => {
     setOrders(loadOrders());
+    // Keep delivery status/timeline live as events land.
+    const tick = () => setOrders(loadOrders());
+    const id = window.setInterval(tick, 5000);
+    window.addEventListener("focus", tick);
+    window.addEventListener("storage", tick);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", tick);
+      window.removeEventListener("storage", tick);
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -91,7 +103,7 @@ Status: ${o.status.toUpperCase()}
           <p className="mt-1 text-sm text-muted-foreground">Search, filter, and download receipts.</p>
         </div>
         <Button asChild className="gradient-gold text-primary-foreground">
-          <Link to="/buy">Buy new bundle</Link>
+          <Link to="/">Buy new bundle</Link>
         </Button>
       </div>
 
@@ -202,6 +214,8 @@ Status: ${o.status.toUpperCase()}
                               <StatusBadge status={o.status} />
                             </div>
                           </div>
+                          <DeliveryTimeline order={o} />
+
                           <Button
                             onClick={() => downloadReceipt(o)}
                             className="w-full gradient-gold text-primary-foreground"
@@ -218,6 +232,70 @@ Status: ${o.status.toUpperCase()}
           </Table>
         )}
       </Card>
+    </div>
+  );
+}
+
+function DeliveryTimeline({ order }: { order: Order }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const steps = deliveryTimeline(order);
+  const est = estimatedDelivery(order);
+  const settled = order.status === "completed" || order.status === "refunded";
+  const broken = order.status === "failed" || order.status === "cancelled";
+
+  return (
+    <div className="rounded-xl border border-border/50 p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold">Delivery timeline</span>
+        <span className="text-xs text-muted-foreground">
+          {settled
+            ? "Delivered"
+            : broken
+              ? "Stopped"
+              : `Estimated ${formatCountdown(est.to, now)}`}
+        </span>
+      </div>
+      <ol className="mt-3 space-y-3">
+        {steps.map((s) => {
+          const Icon =
+            s.state === "done"
+              ? CheckCircle2
+              : s.state === "failed"
+                ? XCircle
+                : s.state === "active"
+                  ? Loader2
+                  : Circle;
+          return (
+            <li key={s.key} className="flex gap-3">
+              <Icon
+                className={`mt-0.5 h-4 w-4 shrink-0 ${
+                  s.state === "done"
+                    ? "text-primary"
+                    : s.state === "failed"
+                      ? "text-destructive"
+                      : s.state === "active"
+                        ? "animate-spin text-primary"
+                        : "text-muted-foreground/50"
+                }`}
+              />
+              <div className="min-w-0">
+                <div className="text-xs font-medium">{s.label}</div>
+                <div className="text-[11px] text-muted-foreground">{s.description}</div>
+                {s.at && (
+                  <div className="text-[10px] text-muted-foreground">
+                    {new Date(s.at).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

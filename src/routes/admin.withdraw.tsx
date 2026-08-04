@@ -23,6 +23,8 @@ import {
 } from "@/lib/admin-data";
 import { useAuth } from "@/lib/auth";
 import { hasPasscode, messageFor, setPasscode, verifyPasscode } from "@/lib/security";
+import { TwoFactorDialog, type TwoFactorRequest } from "@/components/two-factor-dialog";
+import { recordAudit } from "@/lib/audit";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/withdraw")({
@@ -40,6 +42,7 @@ function AdminWithdraw() {
   const [confirm, setConfirm] = useState("");
   const [needsSetup, setNeedsSetup] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [twoFactor, setTwoFactor] = useState<TwoFactorRequest | null>(null);
 
   const refresh = () => {
     setBalance(availableBalance(loadOrders()));
@@ -61,6 +64,7 @@ function AdminWithdraw() {
       setNeedsSetup(false);
       setPasscodeValue("");
       setConfirm("");
+      recordAudit("security", "Withdrawal passcode created");
       toast.success("Withdrawal passcode created");
     } catch (err) {
       toast.error(messageFor(err, "Could not set passcode"));
@@ -79,11 +83,20 @@ function AdminWithdraw() {
       if (!/^(?:0\d{9}|\+?233\d{9})$/.test(destination.replace(/[\s-]/g, "")))
         throw new Error("Enter a valid Mobile Money number");
       await verifyPasscode(adminId, passcode);
-      recordWithdrawal(Number(value.toFixed(2)), destination);
-      setAmount("");
-      setPasscodeValue("");
-      refresh();
-      toast.success("Withdrawal successful");
+      // Step-up 2FA before money leaves the account.
+      setTwoFactor({
+        purpose: "withdrawal",
+        title: "Confirm withdrawal",
+        description: `Two-factor verification is required to send ${formatGHS(Number(value.toFixed(2)))} to ${destination}.`,
+        destination: user?.email ?? destination,
+        onVerified: () => {
+          recordWithdrawal(Number(value.toFixed(2)), destination);
+          setAmount("");
+          setPasscodeValue("");
+          refresh();
+          toast.success("Withdrawal successful");
+        },
+      });
     } catch (err) {
       toast.error(messageFor(err, "Withdrawal failed"));
     } finally {
@@ -93,6 +106,7 @@ function AdminWithdraw() {
 
   return (
     <div className="space-y-6">
+      <TwoFactorDialog request={twoFactor} onClose={() => setTwoFactor(null)} />
       <div>
         <h1 className="font-display text-2xl font-bold sm:text-3xl">Withdraw</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -208,7 +222,8 @@ function AdminWithdraw() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Five wrong passcode attempts lock withdrawals for 15 minutes.
+                Protected by your 4-digit passcode plus two-factor verification. Five wrong
+                passcode attempts lock withdrawals for 15 minutes.
               </p>
             </form>
           )}

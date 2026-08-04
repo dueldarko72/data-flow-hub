@@ -7,6 +7,7 @@ import {
   Megaphone,
   Bell,
   Banknote,
+  ScrollText,
   Settings,
   LogOut,
   Shield,
@@ -39,6 +40,7 @@ const items = [
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Notifications", url: "/admin/notifications", icon: Bell },
   { title: "Withdraw", url: "/admin/withdraw", icon: Banknote },
+  { title: "Audit log", url: "/admin/audit", icon: ScrollText },
   { title: "Broadcast", url: "/admin/broadcast", icon: Megaphone },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ] as const;

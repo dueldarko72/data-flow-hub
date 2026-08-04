@@ -87,9 +87,23 @@ function Landing() {
   const [orders, setOrders] = useState<Order[]>([]);
 
   // Resolve the customer's own allocated catalogue (set by the admin).
+  const [catalogVersion, setCatalogVersion] = useState(0);
+  useEffect(() => {
+    const bump = () => setCatalogVersion((v) => v + 1);
+    window.addEventListener("storage", bump);
+    window.addEventListener("focus", bump);
+    window.addEventListener("dataflex:catalog-changed", bump as EventListener);
+    return () => {
+      window.removeEventListener("storage", bump);
+      window.removeEventListener("focus", bump);
+      window.removeEventListener("dataflex:catalog-changed", bump as EventListener);
+    };
+  }, []);
+
   useEffect(() => {
     if (!user) {
-      setCatalog(DEFAULT_USER_CATALOG);
+      // Guests still see the shared, admin-managed catalogue.
+      setCatalog(loadUserBundles("guest"));
       setSlowEnabled(true);
       setOrders([]);
       return;
@@ -99,7 +113,7 @@ function Landing() {
     setSlowEnabled(loadUserSlowEnabled(record.id));
     const phone = (user.phone ?? "").replace(/\s+/g, "");
     setOrders(loadOrders().filter((o) => !phone || o.recipient.replace(/\s+/g, "") === phone));
-  }, [user]);
+  }, [user, catalogVersion]);
 
   const fastBundles = useMemo(() => catalog.filter((b) => b.group !== "slow"), [catalog]);
   const slowBundles = useMemo(() => catalog.filter((b) => b.group === "slow"), [catalog]);
@@ -118,8 +132,13 @@ function Landing() {
   };
 
   const handleBarTap = (bar: "fast" | "slow") => {
-    if (bar === "slow" && !slowEnabled) {
-      toast.error("1hr – 2hr delivery is currently unavailable on your account.");
+    if (bar === "slow") {
+      // 1hr – 2hr delivery is open to everyone — no sign-in required.
+      if (!slowEnabled) {
+        toast.error("1hr – 2hr delivery is currently unavailable on your account.");
+        return;
+      }
+      revealBundles("slow");
       return;
     }
     if (!user) {

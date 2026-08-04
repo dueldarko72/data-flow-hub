@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/table";
 import { formatGHS, type Bundle } from "@/lib/mock-data";
 import { loadBundles, upsertBundle, deleteBundle } from "@/lib/admin-data";
+import { TwoFactorDialog, type TwoFactorRequest } from "@/components/two-factor-dialog";
+import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/bundles")({
@@ -46,6 +48,8 @@ function AdminBundles() {
   const [editing, setEditing] = useState<Bundle | null>(null);
   const [open, setOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [twoFactor, setTwoFactor] = useState<TwoFactorRequest | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     setBundles(loadBundles());
@@ -70,23 +74,42 @@ function AdminBundles() {
       toast.error("Fill in all fields correctly");
       return;
     }
-    upsertBundle(editing);
-    setBundles(loadBundles());
-    setOpen(false);
-    setEditing(null);
-    toast.success("Bundle saved");
+    const draft = editing;
+    setTwoFactor({
+      purpose: "bundle-management",
+      title: "Confirm bundle change",
+      description: `Two-factor verification is required to save "${draft.name}".`,
+      destination: user?.email ?? "your registered contact",
+      onVerified: () => {
+        upsertBundle(draft);
+        setBundles(loadBundles());
+        setOpen(false);
+        setEditing(null);
+        toast.success("Bundle saved");
+      },
+    });
   };
 
   const confirmDelete = () => {
     if (!deleteId) return;
-    deleteBundle(deleteId);
-    setBundles(loadBundles());
+    const id = deleteId;
     setDeleteId(null);
-    toast.success("Bundle removed");
+    setTwoFactor({
+      purpose: "bundle-management",
+      title: "Confirm bundle deletion",
+      description: "Two-factor verification is required to delete this bundle.",
+      destination: user?.email ?? "your registered contact",
+      onVerified: () => {
+        deleteBundle(id);
+        setBundles(loadBundles());
+        toast.success("Bundle removed");
+      },
+    });
   };
 
   return (
     <div className="space-y-6">
+      <TwoFactorDialog request={twoFactor} onClose={() => setTwoFactor(null)} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-bold sm:text-3xl">Bundles</h1>

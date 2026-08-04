@@ -17,6 +17,7 @@ import { formatGHS, addOrder, pushNotification, type Bundle } from "@/lib/mock-d
 import { DEFAULT_USER_CATALOG, ensureAdminUser } from "@/lib/admin-data";
 import { useAuth } from "@/lib/auth";
 import { messageFor } from "@/lib/security";
+import { enabledChannels } from "@/lib/notification-prefs";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/buy")({
@@ -61,14 +62,16 @@ function BuyPage() {
     if (failed) {
       setStatus("error");
       setErrorMsg("Your Mobile Money payment could not be confirmed. No money was deducted.");
+      const failChannels = enabledChannels(user?.email?.toLowerCase() ?? "guest", "paymentFailures");
       pushNotification({
         id: crypto.randomUUID(),
+        // Admins always get the alert; the customer copy honours their in-app preference.
+        audience: failChannels.includes("inApp") ? "all" : "admin",
         title: "Payment failed",
         message: `${bundle.name} to ${recipient} — Mobile Money payment was not confirmed.`,
         createdAt: new Date().toISOString(),
         read: false,
         type: "payment",
-        audience: "all",
       });
       toast.error("Payment failed — you can retry.");
       return;
@@ -90,14 +93,15 @@ function BuyPage() {
       createdAt: new Date().toISOString(),
       paymentMethod: method === "momo" ? "MTN MoMo" : method,
     });
+    const orderChannels = enabledChannels(user?.email?.toLowerCase() ?? "guest", "deliveryUpdates");
     pushNotification({
       id: crypto.randomUUID(),
+      audience: orderChannels.includes("inApp") ? "all" : "admin",
       title: "Order received",
       message: `${bundle.name} to ${recipient} — reference ${ref}`,
       createdAt: new Date().toISOString(),
       read: false,
       type: "order",
-      audience: "all",
     });
     try {
       sessionStorage.removeItem("datahub-selected-bundle");

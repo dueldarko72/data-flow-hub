@@ -1,4 +1,13 @@
 import { type Bundle, loadOrders, saveOrders, type Order, type OrderStatus, pushNotification } from "./mock-data";
+import { recordAudit } from "./audit";
+
+/** Notify open tabs (e.g. the customer landing page) that catalogues changed. */
+function announceCatalogChange() {
+  try {
+    localStorage.setItem("dataflex-catalog-version", String(Date.now()));
+    window.dispatchEvent(new CustomEvent("dataflex:catalog-changed"));
+  } catch {}
+}
 
 const BUNDLES_KEY = "datahub-bundles";
 const USERS_KEY = "datahub-admin-users";
@@ -18,18 +27,27 @@ export function saveBundles(b: Bundle[]) {
   try {
     localStorage.setItem(BUNDLES_KEY, JSON.stringify(b));
   } catch {}
+  announceCatalogChange();
 }
 
 export function upsertBundle(b: Bundle) {
   const all = loadBundles();
   const i = all.findIndex((x) => x.id === b.id);
+  const isNew = i < 0;
   if (i >= 0) all[i] = b;
   else all.unshift(b);
   saveBundles(all);
+  recordAudit(
+    "bundle",
+    isNew ? "Bundle created" : "Bundle updated",
+    `${b.name} • ${b.gb}GB • GHS ${b.price} • ${b.group === "slow" ? "1hr – 2hr delivery" : "Fast delivery"}`,
+  );
 }
 
 export function deleteBundle(id: string) {
+  const removed = loadBundles().find((b) => b.id === id);
   saveBundles(loadBundles().filter((b) => b.id !== id));
+  recordAudit("bundle", "Bundle deleted", removed ? `${removed.name} • ${removed.gb}GB` : id);
 }
 
 export function updateOrderStatus(id: string, status: OrderStatus) {
@@ -47,6 +65,7 @@ export function updateOrderStatus(id: string, status: OrderStatus) {
     type: "order",
     audience: "all",
   });
+  recordAudit("user", `Order marked ${status}`, `${orders[i].reference} • ${orders[i].bundleName}`);
 }
 
 export interface AdminUser {
@@ -125,6 +144,7 @@ function saveAllUserBundles(m: UserBundleMap) {
   try {
     localStorage.setItem(USER_BUNDLES_KEY, JSON.stringify(m));
   } catch {}
+  announceCatalogChange();
 }
 
 /**
@@ -151,20 +171,28 @@ export function saveUserBundles(userId: string, bundles: Bundle[]) {
   const slow = bundles.filter((b) => b.group === "slow");
   const globalFast = loadBundles().filter((b) => b.group !== "slow");
   saveBundles([...globalFast, ...slow]);
+  recordAudit("bundle", "Customer catalogue saved", `user ${userId}`);
 }
 
 export function upsertUserBundle(userId: string, b: Bundle) {
   if (b.group === "slow") {
+    // Shared group — the change applies to every customer.
     upsertBundle(b);
     return;
   }
   const all = loadAllUserBundles();
   const list = all[userId] ?? [];
   const i = list.findIndex((x) => x.id === b.id);
+  const isNew = i < 0;
   if (i >= 0) list[i] = b;
   else list.unshift(b);
   all[userId] = list;
   saveAllUserBundles(all);
+  recordAudit(
+    "bundle",
+    isNew ? "Customer bundle added" : "Customer bundle updated",
+    `user ${userId} • ${b.name} • ${b.gb}GB • GHS ${b.price}`,
+  );
 }
 
 export function deleteUserBundle(userId: string, bundleId: string) {
@@ -176,6 +204,7 @@ export function deleteUserBundle(userId: string, bundleId: string) {
   const all = loadAllUserBundles();
   all[userId] = (all[userId] ?? []).filter((b) => b.id !== bundleId);
   saveAllUserBundles(all);
+  recordAudit("bundle", "Customer bundle deleted", `user ${userId} • ${bundleId}`);
 }
 
 export function resetUserBundles(userId: string) {
@@ -183,6 +212,7 @@ export function resetUserBundles(userId: string) {
   delete all[userId];
   saveAllUserBundles(all);
   setUserSlowEnabled(userId, true);
+  recordAudit("bundle", "Customer catalogue reset", `user ${userId}`);
 }
 
 /** "1hr – 2hr delivery" availability per user — on by default. */
@@ -204,6 +234,12 @@ export function setUserSlowEnabled(userId: string, enabled: boolean) {
     map[userId] = enabled;
     localStorage.setItem(USER_SLOW_KEY, JSON.stringify(map));
   } catch {}
+  announceCatalogChange();
+  recordAudit(
+    "bundle",
+    `1hr – 2hr delivery ${enabled ? "enabled" : "disabled"}`,
+    `user ${userId}`,
+  );
 }
 
 /** Find (or create) the admin-side customer record for a signed-in visitor. */
@@ -377,5 +413,6 @@ export function recordWithdrawal(amount: number, destination: string): Withdrawa
     type: "system",
     audience: "admin",
   });
+  recordAudit("withdrawal", "Withdrawal processed", `GHS ${amount.toFixed(2)} → ${destination}`);
   return w;
 }
