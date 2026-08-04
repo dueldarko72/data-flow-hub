@@ -91,7 +91,7 @@ Status: ${o.status.toUpperCase()}
           <p className="mt-1 text-sm text-muted-foreground">Search, filter, and download receipts.</p>
         </div>
         <Button asChild className="gradient-gold text-primary-foreground">
-          <Link to="/buy">Buy new bundle</Link>
+          <Link to="/">Buy new bundle</Link>
         </Button>
       </div>
 
