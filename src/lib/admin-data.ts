@@ -27,18 +27,27 @@ export function saveBundles(b: Bundle[]) {
   try {
     localStorage.setItem(BUNDLES_KEY, JSON.stringify(b));
   } catch {}
+  announceCatalogChange();
 }
 
 export function upsertBundle(b: Bundle) {
   const all = loadBundles();
   const i = all.findIndex((x) => x.id === b.id);
+  const isNew = i < 0;
   if (i >= 0) all[i] = b;
   else all.unshift(b);
   saveBundles(all);
+  recordAudit(
+    "bundle",
+    isNew ? "Bundle created" : "Bundle updated",
+    `${b.name} • ${b.gb}GB • GHS ${b.price} • ${b.group === "slow" ? "1hr – 2hr delivery" : "Fast delivery"}`,
+  );
 }
 
 export function deleteBundle(id: string) {
+  const removed = loadBundles().find((b) => b.id === id);
   saveBundles(loadBundles().filter((b) => b.id !== id));
+  recordAudit("bundle", "Bundle deleted", removed ? `${removed.name} • ${removed.gb}GB` : id);
 }
 
 export function updateOrderStatus(id: string, status: OrderStatus) {
