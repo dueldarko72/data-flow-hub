@@ -118,6 +118,7 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script src="https://js.paystack.co/v1/inline.js" async />
         <script
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem('datahub-theme')||'dark';if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark');}catch(e){document.documentElement.classList.add('dark');}`,

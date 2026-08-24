@@ -13,6 +13,7 @@ import {
   Server,
   Database,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,18 +144,53 @@ function SettingsPage() {
           </Field>
         </Card>
 
+        {/* Payment Gateway Configuration */}
+        <Card className="glass border-0 p-6 space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-primary" />
+              <h2 className="text-base font-semibold">Paystack Payment Gateway</h2>
+            </div>
+            <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">
+              Active Gateway
+            </Badge>
+          </div>
+
+          <Field label="Paystack Public Key" icon={Shield}>
+            <Input
+              value={s.paystackPublicKey || ""}
+              onChange={(e) => setS({ ...s, paystackPublicKey: e.target.value })}
+              placeholder="pk_test_... or pk_live_..."
+              className="font-mono text-xs"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Supports MTN Mobile Money, Telecel Cash, AT Money, and Visa/Mastercard payments.
+            </p>
+          </Field>
+
+          <div className="rounded-xl border border-border/50 bg-card/30 p-3 text-xs space-y-1.5">
+            <div className="flex items-center gap-2 text-emerald-500 font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <span>GHS Mobile Money & Card Checkout Ready</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Payments are processed through Paystack Pop inline modal in real-time.
+            </p>
+          </div>
+        </Card>
+
         {/* Automation & Safety */}
-        <div className="space-y-6">
+        <div className="space-y-6 md:col-span-2">
           <Card className="glass border-0 p-6 space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-border/40">
               <Sliders className="h-4 w-4 text-primary" />
               <h2 className="text-base font-semibold">Platform Automation & Status</h2>
             </div>
 
-            <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Toggle
                 label="Auto-Approve Orders"
-                desc="Instantly mark orders as Processing upon verified MoMo payment"
+                desc="Instantly mark orders as Processing upon verified MoMo/Paystack payment"
                 checked={s.autoApprove}
                 onChange={(v) => setS({ ...s, autoApprove: v })}
               />
@@ -166,15 +202,17 @@ function SettingsPage() {
                 onChange={(v) => setS({ ...s, maintenance: v, maintenanceMode: v })}
               />
 
-              <Field label="Minimum Admin Withdrawal (GHS)" icon={Shield}>
-                <Input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={s.minWithdrawal || 10}
-                  onChange={(e) => setS({ ...s, minWithdrawal: Number(e.target.value) })}
-                />
-              </Field>
+              <div className="sm:col-span-2">
+                <Field label="Minimum Admin Withdrawal (GHS)" icon={Shield}>
+                  <Input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={s.minWithdrawal || 10}
+                    onChange={(e) => setS({ ...s, minWithdrawal: Number(e.target.value) })}
+                  />
+                </Field>
+              </div>
             </div>
           </Card>
 

@@ -250,6 +250,7 @@ CREATE TABLE IF NOT EXISTS public.settings (
   auto_approve BOOLEAN DEFAULT TRUE NOT NULL,
   maintenance BOOLEAN DEFAULT FALSE NOT NULL,
   min_withdrawal NUMERIC(12, 2) DEFAULT 10.00 NOT NULL,
+  paystack_public_key TEXT DEFAULT 'pk_test_89f8b1554a54065b1017190634b2755f9883993e',
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
@@ -267,13 +268,14 @@ CREATE POLICY "Anyone can manage settings"
   USING (true);
 
 -- Insert initial global default settings
-INSERT INTO public.settings (id, store_name, support_email, support_phone, momo_number, auto_approve, maintenance, min_withdrawal)
-VALUES ('global', 'DataFlex', 'support@dataflex.gh', '0244000111', '0244000111', true, false, 10.00)
+INSERT INTO public.settings (id, store_name, support_email, support_phone, momo_number, auto_approve, maintenance, min_withdrawal, paystack_public_key)
+VALUES ('global', 'DataFlex', 'support@dataflex.gh', '0244000111', '0244000111', true, false, 10.00, 'pk_test_89f8b1554a54065b1017190634b2755f9883993e')
 ON CONFLICT (id) DO UPDATE SET
   store_name = EXCLUDED.store_name,
   support_email = EXCLUDED.support_email,
   support_phone = EXCLUDED.support_phone,
-  momo_number = EXCLUDED.momo_number;
+  momo_number = EXCLUDED.momo_number,
+  paystack_public_key = COALESCE(EXCLUDED.paystack_public_key, public.settings.paystack_public_key);
 
 
 -- ---------------------------------------------------------

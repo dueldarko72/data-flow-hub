@@ -446,6 +446,7 @@ export interface SystemSettings {
   maintenance: boolean;
   maintenanceMode: boolean;
   minWithdrawal: number;
+  paystackPublicKey?: string;
 }
 
 export type AdminSettings = SystemSettings;

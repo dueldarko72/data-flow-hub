@@ -1,11 +1,22 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, Phone, CreditCard, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
+import {
+  Loader2,
+  Phone,
+  CreditCard,
+  CheckCircle2,
+  AlertTriangle,
+  RotateCcw,
+  Smartphone,
+  ShieldCheck,
+  Zap,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -14,9 +25,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatGHS, addOrder, pushNotification, type Bundle } from "@/lib/mock-data";
-import { DEFAULT_USER_CATALOG, ensureAdminUser } from "@/lib/admin-data";
+import { DEFAULT_USER_CATALOG, ensureAdminUser, loadSettings } from "@/lib/admin-data";
 import { useAuth } from "@/lib/auth";
 import { messageFor } from "@/lib/security";
+import { openPaystackCheckout, type PaystackPaymentChannel } from "@/lib/paystack";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/buy")({
@@ -29,13 +41,14 @@ function BuyPage() {
   const navigate = useNavigate();
   const { user, registerQuick, updateUser } = useAuth();
   const [bundle, setBundle] = useState<Bundle | null>(null);
-  const [method, setMethod] = useState("momo");
+  const [method, setMethod] = useState("all");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [reference, setReference] = useState("");
   const [changeOpen, setChangeOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [paystackKey, setPaystackKey] = useState<string | undefined>(undefined);
 
   const recipient = user?.phone ?? "";
 
@@ -57,70 +70,138 @@ function BuyPage() {
       }
     }
     initBundle();
+
+    loadSettings().then((s) => {
+      if (s.paystackPublicKey) {
+        setPaystackKey(s.paystackPublicKey);
+      }
+    });
   }, [user?.id]);
 
   const handlePay = async () => {
-    if (!bundle || !recipient) return;
+    if (!bundle || !recipient) {
+      toast.error("Please ensure a valid recipient number is selected.");
+      return;
+    }
+
     setStatus("processing");
     setErrorMsg("");
 
-    // Simulate brief processing delay (replace this block with Paystack when ready)
-    await new Promise((r) => setTimeout(r, 1600));
+    const ref = `DF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const customerEmail =
+      user?.email && user.email.includes("@")
+        ? user.email
+        : `${recipient.replace(/[^0-9]/g, "") || "customer"}@dataflex.gh`;
+
+    let channels: PaystackPaymentChannel[] | undefined = undefined;
+    if (method === "momo") {
+      channels = ["mobile_money"];
+    } else if (method === "card") {
+      channels = ["card"];
+    }
 
     try {
-      const ref = "DF-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-      setReference(ref);
-
-      // Create the order in Supabase
-      await addOrder(
-        {
-          id: crypto.randomUUID(),
-          reference: ref,
-          bundleId: bundle.id,
-          bundleName: bundle.name,
-          network: bundle.network,
-          gb: bundle.gb,
-          amount: bundle.price,
-          recipient,
-          status: "pending",
-          group: bundle.group ?? "fast",
-          createdAt: new Date().toISOString(),
-          paymentMethod: "MTN MoMo",
+      await openPaystackCheckout({
+        key: paystackKey,
+        email: customerEmail,
+        amount: bundle.price,
+        currency: "GHS",
+        reference: ref,
+        channels,
+        metadata: {
+          custom_fields: [
+            { display_name: "Recipient", variable_name: "recipient", value: recipient },
+            { display_name: "Bundle", variable_name: "bundle", value: `${bundle.name} (${bundle.gb}GB)` },
+            { display_name: "Network", variable_name: "network", value: bundle.network },
+          ],
         },
-        user?.id,
-      );
+        onSuccess: async (res) => {
+          try {
+            const confirmedRef = res.reference || ref;
+            setReference(confirmedRef);
 
-      // Deduct from wallet balance
-      if (user?.id) {
-        const newBal = Math.max(0, (user.balance ?? 0) - bundle.price);
-        await updateUser({ balance: newBal });
-      }
+            const methodLabel =
+              method === "momo"
+                ? "Paystack (MoMo)"
+                : method === "card"
+                  ? "Paystack (Card)"
+                  : "Paystack";
 
-      // Fire a success notification to the customer + admin
-      await pushNotification({
-        id: crypto.randomUUID(),
-        audience: "all",
-        title: "Order received ✅",
-        message: `${bundle.name} sent to ${recipient} — ref ${ref}`,
-        createdAt: new Date().toISOString(),
-        read: false,
-        type: "order",
-        userId: user?.id,
+            // Create order in Supabase
+            await addOrder(
+              {
+                id: crypto.randomUUID(),
+                reference: confirmedRef,
+                bundleId: bundle.id,
+                bundleName: bundle.name,
+                network: bundle.network,
+                gb: bundle.gb,
+                amount: bundle.price,
+                recipient,
+                status: "pending",
+                group: bundle.group ?? "fast",
+                createdAt: new Date().toISOString(),
+                paymentMethod: methodLabel,
+              },
+              user?.id,
+            );
+
+            // Record transaction log if user has an account
+            if (user?.id) {
+              const { createSupabaseTransaction } = await import("@/lib/supabase-api");
+              await createSupabaseTransaction({
+                userId: user.id,
+                type: "debit",
+                title: `Purchase: ${bundle.name} (${bundle.gb}GB)`,
+                amount: bundle.price,
+                reference: confirmedRef,
+              });
+            }
+
+            // Notification
+            await pushNotification({
+              id: crypto.randomUUID(),
+              audience: "all",
+              title: "Payment confirmed ✅",
+              message: `${bundle.name} delivery started for ${recipient} (Ref: ${confirmedRef})`,
+              createdAt: new Date().toISOString(),
+              read: false,
+              type: "order",
+              userId: user?.id,
+            });
+
+            try {
+              sessionStorage.removeItem("datahub-selected-bundle");
+            } catch {}
+
+            setStatus("success");
+            toast.success("Payment verified! Your data is being delivered.");
+          } catch (insertError: unknown) {
+            console.error("Order recording error:", insertError);
+            const errObj = insertError as { message?: string } | undefined;
+            setStatus("error");
+            setErrorMsg(
+              `Payment was approved by Paystack, but saving the order had an issue: ${errObj?.message || String(insertError)}. Please contact support with reference ${ref}`,
+            );
+          }
+        },
+        onCancel: () => {
+          setStatus("idle");
+          toast.info("Payment window closed. You can retry at any time.");
+        },
+        onError: (err) => {
+          console.error("Paystack error:", err);
+          setStatus("error");
+          setErrorMsg(err.message || "Failed to initialize Paystack.");
+          toast.error("Payment initialization failed — please try again.");
+        },
       });
-
-      try {
-        sessionStorage.removeItem("datahub-selected-bundle");
-      } catch {}
-
-      setStatus("success");
-      toast.success("Payment accepted! Order is being processed.");
     } catch (err: unknown) {
-      console.error("Payment/Order insertion failed:", err);
+      console.error("Payment initiation failed:", err);
       setStatus("error");
-      const errObj = err as { message?: string; details?: string } | undefined;
-      const detailedMessage = errObj?.message || errObj?.details || String(err);
-      setErrorMsg(`Something went wrong while placing your order: ${detailedMessage}`);
-      toast.error("Order failed — please retry.");
+      const errObj = err as { message?: string } | undefined;
+      setErrorMsg(errObj?.message || "Failed to launch Paystack gateway.");
+      toast.error("Could not open Paystack checkout.");
     }
   };
 
@@ -243,25 +324,58 @@ function BuyPage() {
 
             <div className="space-y-2">
               <Label>Payment method</Label>
-              <RadioGroup value={method} onValueChange={setMethod}>
+              <RadioGroup value={method} onValueChange={setMethod} className="space-y-2">
                 {[
-                  { v: "momo", label: "MTN Mobile Money", ok: true },
-                  { v: "card", label: "Card (coming soon)", ok: false },
-                  { v: "bank", label: "Bank transfer (coming soon)", ok: false },
-                ].map((m) => (
-                  <label
-                    key={m.v}
-                    className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 ${
-                      method === m.v ? "border-primary bg-primary/5" : "border-border"
-                    } ${!m.ok ? "opacity-50" : ""}`}
-                  >
-                    <div className="flex items-center gap-3 text-sm">
-                      <CreditCard className="h-4 w-4" />
-                      {m.label}
-                    </div>
-                    <RadioGroupItem value={m.v} disabled={!m.ok} />
-                  </label>
-                ))}
+                  {
+                    v: "all",
+                    label: "Paystack (Mobile Money & Cards)",
+                    sub: "MTN, Telecel, AT Money, Visa, Mastercard",
+                    badge: "Recommended",
+                    icon: Zap,
+                  },
+                  {
+                    v: "momo",
+                    label: "Mobile Money",
+                    sub: "MTN MoMo, Telecel Cash & AT Money via Paystack",
+                    badge: null,
+                    icon: Smartphone,
+                  },
+                  {
+                    v: "card",
+                    label: "Debit / Credit Card",
+                    sub: "Visa, Mastercard, Verve via Paystack",
+                    badge: null,
+                    icon: CreditCard,
+                  },
+                ].map((m) => {
+                  const Icon = m.icon;
+                  return (
+                    <label
+                      key={m.v}
+                      className={`flex cursor-pointer items-center justify-between rounded-xl border p-3.5 transition ${
+                        method === m.v ? "border-primary bg-primary/5 shadow-sm" : "border-border/60 hover:bg-card/50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 rounded-lg p-2 ${method === m.v ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{m.label}</span>
+                            {m.badge && (
+                              <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] px-1.5 py-0">
+                                {m.badge}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{m.sub}</p>
+                        </div>
+                      </div>
+                      <RadioGroupItem value={m.v} />
+                    </label>
+                  );
+                })}
               </RadioGroup>
             </div>
 
@@ -276,9 +390,9 @@ function BuyPage() {
             )}
 
             {status === "processing" && (
-              <div className="flex items-center gap-3 rounded-xl border border-border p-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 rounded-xl border border-border p-4 text-sm text-muted-foreground bg-primary/5">
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                Waiting for Mobile Money confirmation…
+                Opening Paystack secure checkout window…
               </div>
             )}
 

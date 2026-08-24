@@ -550,6 +550,7 @@ export interface SupabaseSettings {
   maintenance: boolean;
   maintenanceMode: boolean;
   minWithdrawal: number;
+  paystackPublicKey?: string;
 }
 
 const DEFAULT_SETTINGS: SupabaseSettings = {
@@ -561,6 +562,7 @@ const DEFAULT_SETTINGS: SupabaseSettings = {
   maintenance: false,
   maintenanceMode: false,
   minWithdrawal: 10,
+  paystackPublicKey: "pk_test_89f8b1554a54065b1017190634b2755f9883993e",
 };
 
 export async function fetchSupabaseSettings(): Promise<SupabaseSettings> {
@@ -584,25 +586,32 @@ export async function fetchSupabaseSettings(): Promise<SupabaseSettings> {
     maintenance: Boolean(data.maintenance ?? false),
     maintenanceMode: Boolean(data.maintenance ?? false),
     minWithdrawal: Number(data.min_withdrawal ?? 10),
+    paystackPublicKey: data.paystack_public_key || DEFAULT_SETTINGS.paystackPublicKey,
   };
 }
 
 export async function updateSupabaseSettings(
   s: Partial<SupabaseSettings>,
 ): Promise<SupabaseSettings> {
+  const payload: Record<string, unknown> = {
+    id: "global",
+    store_name: s.storeName,
+    support_email: s.supportEmail,
+    support_phone: s.supportPhone,
+    momo_number: s.momoNumber,
+    auto_approve: s.autoApprove,
+    maintenance: s.maintenance ?? s.maintenanceMode,
+    min_withdrawal: s.minWithdrawal,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (s.paystackPublicKey !== undefined) {
+    payload.paystack_public_key = s.paystackPublicKey;
+  }
+
   const { data, error } = await supabase
     .from("settings")
-    .upsert({
-      id: "global",
-      store_name: s.storeName,
-      support_email: s.supportEmail,
-      support_phone: s.supportPhone,
-      momo_number: s.momoNumber,
-      auto_approve: s.autoApprove,
-      maintenance: s.maintenance ?? s.maintenanceMode,
-      min_withdrawal: s.minWithdrawal,
-      updated_at: new Date().toISOString(),
-    })
+    .upsert(payload)
     .select()
     .single();
 
@@ -620,6 +629,7 @@ export async function updateSupabaseSettings(
     maintenance: Boolean(data.maintenance),
     maintenanceMode: Boolean(data.maintenance),
     minWithdrawal: Number(data.min_withdrawal),
+    paystackPublicKey: data.paystack_public_key || DEFAULT_SETTINGS.paystackPublicKey,
   };
 }
 
