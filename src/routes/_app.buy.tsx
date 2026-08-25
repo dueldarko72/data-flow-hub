@@ -88,10 +88,11 @@ function BuyPage() {
     setErrorMsg("");
 
     const ref = `DF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const cleanEmail = (user?.email || "").trim();
     const customerEmail =
-      user?.email && user.email.includes("@")
-        ? user.email
-        : `${recipient.replace(/[^0-9]/g, "") || "customer"}@dataflex.gh`;
+      cleanEmail.length > 3 && cleanEmail.includes("@")
+        ? cleanEmail
+        : `customer_${recipient.replace(/[^0-9a-zA-Z]/g, "") || "user"}@dataflex.gh`;
 
     let channels: PaystackPaymentChannel[] | undefined = undefined;
     if (method === "momo") {
