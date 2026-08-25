@@ -116,6 +116,7 @@ function BuyPage() {
           ],
         },
         onSuccess: async (res) => {
+          setStatus("processing");
           try {
             const confirmedRef = res.reference || ref;
             setReference(confirmedRef);
@@ -196,6 +197,8 @@ function BuyPage() {
           toast.error("Payment initialization failed — please try again.");
         },
       });
+      // Modal has successfully been requested to open
+      setStatus("idle");
     } catch (err: unknown) {
       console.error("Payment initiation failed:", err);
       setStatus("error");
