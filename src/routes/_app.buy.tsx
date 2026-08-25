@@ -102,6 +102,38 @@ function BuyPage() {
     }
 
     try {
+      const methodLabel =
+        method === "momo"
+          ? "Paystack (MoMo)"
+          : method === "card"
+            ? "Paystack (Card)"
+            : "Paystack";
+
+      // 1. Create order in Supabase with pending status
+      await addOrder(
+        {
+          id: crypto.randomUUID(),
+          reference: ref,
+          bundleId: bundle.id,
+          bundleName: bundle.name,
+          network: bundle.network,
+          gb: bundle.gb,
+          amount: bundle.price,
+          recipient,
+          status: "pending",
+          group: bundle.group ?? "fast",
+          createdAt: new Date().toISOString(),
+          paymentMethod: methodLabel,
+        },
+        user?.id,
+      );
+
+      // 2. Clear selected bundle cache
+      try {
+        sessionStorage.removeItem("datahub-selected-bundle");
+      } catch {}
+
+      // 3. Launch Paystack Checkout
       await openPaystackCheckout({
         key: paystackKey,
         email: customerEmail,
@@ -109,87 +141,13 @@ function BuyPage() {
         currency: "GHS",
         reference: ref,
         channels,
+        callbackUrl: `${window.location.origin}/orders?ref=${ref}&payment=success`,
         metadata: {
           custom_fields: [
             { display_name: "Recipient", variable_name: "recipient", value: recipient },
             { display_name: "Bundle", variable_name: "bundle", value: `${bundle.name} (${bundle.gb}GB)` },
             { display_name: "Network", variable_name: "network", value: bundle.network },
           ],
-        },
-        onSuccess: async (res) => {
-          setStatus("processing");
-          try {
-            const confirmedRef = res.reference || ref;
-            setReference(confirmedRef);
-
-            const methodLabel =
-              method === "momo"
-                ? "Paystack (MoMo)"
-                : method === "card"
-                  ? "Paystack (Card)"
-                  : "Paystack";
-
-            // Create order in Supabase
-            await addOrder(
-              {
-                id: crypto.randomUUID(),
-                reference: confirmedRef,
-                bundleId: bundle.id,
-                bundleName: bundle.name,
-                network: bundle.network,
-                gb: bundle.gb,
-                amount: bundle.price,
-                recipient,
-                status: "pending",
-                group: bundle.group ?? "fast",
-                createdAt: new Date().toISOString(),
-                paymentMethod: methodLabel,
-              },
-              user?.id,
-            );
-
-            // Record transaction log if user has an account
-            if (user?.id) {
-              const { createSupabaseTransaction } = await import("@/lib/supabase-api");
-              await createSupabaseTransaction({
-                userId: user.id,
-                type: "debit",
-                title: `Purchase: ${bundle.name} (${bundle.gb}GB)`,
-                amount: bundle.price,
-                reference: confirmedRef,
-              });
-            }
-
-            // Notification
-            await pushNotification({
-              id: crypto.randomUUID(),
-              audience: "all",
-              title: "Payment confirmed ✅",
-              message: `${bundle.name} delivery started for ${recipient} (Ref: ${confirmedRef})`,
-              createdAt: new Date().toISOString(),
-              read: false,
-              type: "order",
-              userId: user?.id,
-            });
-
-            try {
-              sessionStorage.removeItem("datahub-selected-bundle");
-            } catch {}
-
-            setStatus("success");
-            toast.success("Payment verified! Your data is being delivered.");
-          } catch (insertError: unknown) {
-            console.error("Order recording error:", insertError);
-            const errObj = insertError as { message?: string } | undefined;
-            setStatus("error");
-            setErrorMsg(
-              `Payment was approved by Paystack, but saving the order had an issue: ${errObj?.message || String(insertError)}. Please contact support with reference ${ref}`,
-            );
-          }
-        },
-        onCancel: () => {
-          setStatus("idle");
-          toast.info("Payment window closed. You can retry at any time.");
         },
         onError: (err) => {
           console.error("Paystack initialization error:", err);
@@ -199,8 +157,6 @@ function BuyPage() {
           toast.error(msg);
         },
       });
-      // Modal has successfully opened
-      setStatus("idle");
     } catch (err: unknown) {
       console.error("Payment initiation failed:", err);
       setStatus("error");

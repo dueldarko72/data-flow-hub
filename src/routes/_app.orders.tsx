@@ -54,6 +54,23 @@ function OrdersPage() {
   const [selected, setSelected] = useState<Order | null>(null);
 
   useEffect(() => {
+    // Check if returning from Paystack redirect
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref") || params.get("reference") || params.get("trxref");
+      const paymentStatus = params.get("payment");
+      if (ref) {
+        setQ(ref);
+        if (paymentStatus === "success" || !paymentStatus) {
+          toast.success(`Payment verified for order ${ref}!`);
+        }
+        // Clean URL params without reloading
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     async function fetchOrders() {
       const data = await loadOrders(user?.id);
       setOrders(data);

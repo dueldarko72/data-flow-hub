@@ -1,6 +1,3 @@
-// @ts-expect-error - @paystack/inline-js does not ship TypeScript types by default
-import PaystackPop from "@paystack/inline-js";
-
 export const DEFAULT_PAYSTACK_KEY =
   import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || "pk_test_89f8b1554a54065b1017190634b2755f9883993e";
 
@@ -13,6 +10,7 @@ export interface PaystackCheckoutOptions {
   currency?: string; // default "GHS"
   reference?: string;
   channels?: PaystackPaymentChannel[];
+  callbackUrl?: string;
   metadata?: {
     custom_fields?: Array<{
       display_name: string;
@@ -21,7 +19,7 @@ export interface PaystackCheckoutOptions {
     }>;
     [key: string]: unknown;
   };
-  onSuccess: (response: {
+  onSuccess?: (response: {
     reference: string;
     trxref: string;
     status: string;
@@ -31,87 +29,92 @@ export interface PaystackCheckoutOptions {
   onError?: (err: Error) => void;
 }
 
-let paystackInstance: InstanceType<typeof PaystackPop> | null = null;
-
-function getPaystackInstance() {
-  if (typeof window === "undefined") return null;
-  if (!paystackInstance) {
-    paystackInstance = new PaystackPop();
-  }
-  return paystackInstance;
-}
-
 /**
- * Triggers Paystack Inline Modal popup safely using the official SDK.
+ * Initialize a Paystack transaction directly via Paystack's client API.
+ * Returns the access_code and checkoutUrl (https://checkout.paystack.com/{access_code})
  */
-export async function openPaystackCheckout(options: PaystackCheckoutOptions): Promise<void> {
+export async function initializePaystackTransaction(options: PaystackCheckoutOptions): Promise<{
+  accessCode: string;
+  reference: string;
+  checkoutUrl: string;
+}> {
   const publicKey = options.key || DEFAULT_PAYSTACK_KEY;
   if (!publicKey) {
-    const error = new Error("Paystack Public Key is missing. Please configure it in settings.");
-    if (options.onError) {
-      options.onError(error);
-      return;
-    }
-    throw error;
+    throw new Error("Paystack Public Key is missing. Please configure it in settings.");
   }
 
-  // Paystack expects amount in lowest currency unit (pesewas: GHS 1 = 100 pesewas)
   const amountInPesewas = Math.round(options.amount * 100);
   const ref =
     options.reference ||
     `DF-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
-  try {
-    const paystack = getPaystackInstance();
-    if (!paystack) {
-      throw new Error("Paystack checkout is only supported in a browser environment.");
-    }
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const callbackUrl = options.callbackUrl || `${currentOrigin}/orders?ref=${ref}`;
 
-    paystack.newTransaction({
-      key: publicKey,
-      email: options.email,
-      amount: amountInPesewas,
-      currency: options.currency || "GHS",
-      reference: ref,
-      channels:
-        options.channels && options.channels.length > 0 ? options.channels : undefined,
-      metadata: options.metadata,
-      onSuccess: (transaction: {
-        reference?: string;
-        trxref?: string;
-        status?: string;
-        message?: string;
-      }) => {
-        options.onSuccess({
-          reference: transaction.reference || ref,
-          trxref: transaction.trxref || ref,
-          status: transaction.status || "success",
-          message: transaction.message || "Payment successful",
-        });
-      },
-      onCancel: () => {
-        if (options.onCancel) {
-          options.onCancel();
-        }
-      },
-      onError: (err: { message?: string } | Error) => {
-        const error =
-          err instanceof Error
-            ? err
-            : new Error((err as { message?: string })?.message || "Payment initialization failed");
-        if (options.onError) {
-          options.onError(error);
-        }
-      },
-    });
-  } catch (err: unknown) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    console.error("Error opening Paystack checkout modal:", error);
-    if (options.onError) {
-      options.onError(error);
-    } else {
-      throw error;
-    }
+  const payload: Record<string, unknown> = {
+    key: publicKey,
+    email: options.email,
+    amount: amountInPesewas,
+    currency: options.currency || "GHS",
+    ref,
+    callback_url: callbackUrl,
+    channels:
+      options.channels && options.channels.length > 0 ? options.channels : undefined,
+  };
+
+  if (options.metadata) {
+    payload.metadata = JSON.stringify(options.metadata);
   }
+
+  const response = await fetch("https://api.paystack.co/checkout/request_inline", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!data.status || !data.data?.access_code) {
+    throw new Error(data.message || "Failed to initialize transaction with Paystack.");
+  }
+
+  const accessCode = data.data.access_code;
+  const checkoutUrl = `https://checkout.paystack.com/${accessCode}`;
+
+  return {
+    accessCode,
+    reference: ref,
+    checkoutUrl,
+  };
 }
 
+/**
+ * Open Paystack Checkout:
+ * Redirects securely to Paystack's official checkout page (https://checkout.paystack.com/{access_code}).
+ * This avoids all browser iframe/third-party cookie blocking issues and works seamlessly on all mobile & desktop browsers.
+ */
+export async function openPaystackCheckout(options: PaystackCheckoutOptions): Promise<{
+  accessCode: string;
+  reference: string;
+  checkoutUrl: string;
+}> {
+  try {
+    const initResult = await initializePaystackTransaction(options);
+    
+    // Redirect customer to Paystack's verified checkout page
+    if (typeof window !== "undefined") {
+      window.location.href = initResult.checkoutUrl;
+    }
+    
+    return initResult;
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    console.error("Paystack initialization error:", error);
+    if (options.onError) {
+      options.onError(error);
+    }
+    throw error;
+  }
+}
