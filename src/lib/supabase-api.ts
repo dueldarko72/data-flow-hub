@@ -273,6 +273,72 @@ export async function updateSupabaseOrderStatus(
   }
 }
 
+export async function syncOrderPaymentSuccess(reference: string): Promise<Order | null> {
+  try {
+    const settings = await fetchSupabaseSettings();
+    const nextStatus: Order["status"] = settings.autoApprove ? "processing" : "pending";
+
+    // 1. Update order status in Supabase
+    const { data: order, error } = await supabase
+      .from("orders")
+      .update({ status: nextStatus })
+      .eq("reference", reference)
+      .select()
+      .maybeSingle();
+
+    if (error || !order) {
+      console.warn("Could not find order to sync status for reference:", reference);
+      return null;
+    }
+
+    // 2. Insert transaction if not existing
+    const { data: existingTx } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("reference", reference)
+      .maybeSingle();
+
+    if (!existingTx && order.user_id) {
+      await supabase.from("transactions").insert({
+        user_id: order.user_id,
+        type: "debit",
+        title: `Purchase: ${order.bundle_name} (${order.gb}GB)`,
+        amount: order.amount,
+        reference: order.reference,
+        status: "success",
+      });
+    }
+
+    // 3. Broadcast notification
+    await supabase.from("notifications").insert({
+      user_id: order.user_id,
+      title: "Payment Confirmed ✅",
+      message: `${order.bundle_name} (${order.gb}GB) delivery in progress for ${order.recipient}. Ref: ${order.reference}`,
+      type: "order",
+      audience: "all",
+      read: false,
+    });
+
+    return {
+      id: order.id,
+      reference: order.reference,
+      bundleId: order.bundle_id || "",
+      bundleName: order.bundle_name,
+      network: order.network,
+      gb: Number(order.gb),
+      amount: Number(order.amount),
+      recipient: order.recipient,
+      status: order.status,
+      createdAt: order.created_at,
+      paymentMethod: order.payment_method,
+      group: order.group_type as "fast" | "slow",
+    };
+  } catch (e) {
+    console.error("Error in syncOrderPaymentSuccess:", e);
+    return null;
+  }
+}
+
 export async function bulkUpdateSupabaseOrderStatus(
   orderIds: string[],
   status: Order["status"],

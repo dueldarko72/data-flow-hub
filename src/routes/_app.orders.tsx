@@ -61,14 +61,23 @@ function OrdersPage() {
       const paymentStatus = params.get("payment");
       if (ref) {
         setQ(ref);
+        import("@/lib/supabase-api").then(async ({ syncOrderPaymentSuccess }) => {
+          const updated = await syncOrderPaymentSuccess(ref);
+          if (updated) {
+            setSelected(updated);
+          }
+          const data = await loadOrders(user?.id);
+          setOrders(data);
+        });
+
         if (paymentStatus === "success" || !paymentStatus) {
-          toast.success(`Payment verified for order ${ref}!`);
+          toast.success(`Payment verified! Order ${ref} is being processed for delivery.`);
         }
         // Clean URL params without reloading
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     async function fetchOrders() {
