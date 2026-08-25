@@ -49,7 +49,8 @@ export async function initializePaystackTransaction(options: PaystackCheckoutOpt
     `DF-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
   const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
-  const callbackUrl = options.callbackUrl || `${currentOrigin}/orders?ref=${ref}`;
+  // Just point to /orders — Paystack appends ?trxref=REF&reference=REF automatically
+  const callbackUrl = options.callbackUrl || `${currentOrigin}/orders`;
 
   const payload: Record<string, unknown> = {
     key: publicKey,
@@ -102,12 +103,16 @@ export async function openPaystackCheckout(options: PaystackCheckoutOptions): Pr
 }> {
   try {
     const initResult = await initializePaystackTransaction(options);
-    
-    // Redirect customer to Paystack's verified checkout page
+
+    // Persist ref in sessionStorage so /orders can recover it even if
+    // the Paystack dashboard callback URL hasn't been updated yet.
     if (typeof window !== "undefined") {
+      sessionStorage.setItem("ps-pending-ref", initResult.reference);
+      sessionStorage.setItem("ps-pending-ts", Date.now().toString());
+      // Redirect customer to Paystack's verified checkout page
       window.location.href = initResult.checkoutUrl;
     }
-    
+
     return initResult;
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));

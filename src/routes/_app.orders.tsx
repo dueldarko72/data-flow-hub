@@ -55,27 +55,45 @@ function OrdersPage() {
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    // Check if returning from Paystack redirect
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get("ref") || params.get("reference") || params.get("trxref");
-      const paymentStatus = params.get("payment");
-      if (ref) {
-        setQ(ref);
-        import("@/lib/supabase-api").then(async ({ syncOrderPaymentSuccess }) => {
-          const updated = await syncOrderPaymentSuccess(ref);
-          const data = await loadOrders(user?.id);
-          setOrders(data);
-          // Find the order to show in receipt (prefer synced, fallback to list)
-          const found = updated || data.find((o) => o.reference === ref) || null;
-          if (found && (paymentStatus === "success" || !paymentStatus)) {
-            setReceiptOrder(found);
-          }
-        });
+    // Detect Paystack return: either via URL params (dashboard callback set correctly)
+    // or via sessionStorage fallback (works on localhost without dashboard config).
+    if (typeof window === "undefined") return;
 
-        // Clean URL params without reloading
-        window.history.replaceState({}, document.title, window.location.pathname);
+    const params = new URLSearchParams(window.location.search);
+    // Paystack natively appends ?trxref=REF&reference=REF to the callback URL
+    let ref = params.get("trxref") || params.get("reference") || params.get("ref");
+
+    // Fallback: use sessionStorage if the dashboard redirected elsewhere (e.g. example.com)
+    // or if the user landed here without URL params but a payment was recently started.
+    if (!ref) {
+      const storedRef = sessionStorage.getItem("ps-pending-ref");
+      const storedTs = sessionStorage.getItem("ps-pending-ts");
+      if (storedRef && storedTs) {
+        const age = Date.now() - parseInt(storedTs, 10);
+        // Only use if the payment was started within the last 30 minutes
+        if (age < 30 * 60 * 1000) {
+          ref = storedRef;
+        }
       }
+    }
+
+    if (ref) {
+      // Clear storage and URL params
+      sessionStorage.removeItem("ps-pending-ref");
+      sessionStorage.removeItem("ps-pending-ts");
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      setQ(ref);
+      import("@/lib/supabase-api").then(async ({ syncOrderPaymentSuccess }) => {
+        const updated = await syncOrderPaymentSuccess(ref!);
+        const data = await loadOrders(user?.id);
+        setOrders(data);
+        // Show receipt overlay
+        const found = updated || data.find((o) => o.reference === ref) || null;
+        if (found) {
+          setReceiptOrder(found);
+        }
+      });
     }
   }, [user?.id]);
 
