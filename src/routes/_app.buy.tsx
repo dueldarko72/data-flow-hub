@@ -87,7 +87,7 @@ function BuyPage() {
     setStatus("processing");
     setErrorMsg("");
 
-    const ref = `DF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const ref = `DF-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     const cleanEmail = (user?.email || "").trim();
     const customerEmail =
       cleanEmail.length > 3 && cleanEmail.includes("@")
@@ -192,20 +192,22 @@ function BuyPage() {
           toast.info("Payment window closed. You can retry at any time.");
         },
         onError: (err) => {
-          console.error("Paystack error:", err);
+          console.error("Paystack initialization error:", err);
           setStatus("error");
-          setErrorMsg(err.message || "Failed to initialize Paystack.");
-          toast.error("Payment initialization failed — please try again.");
+          const msg = err?.message || "Failed to initialize Paystack.";
+          setErrorMsg(msg);
+          toast.error(msg);
         },
       });
-      // Modal has successfully been requested to open
+      // Modal has successfully opened
       setStatus("idle");
     } catch (err: unknown) {
       console.error("Payment initiation failed:", err);
       setStatus("error");
       const errObj = err as { message?: string } | undefined;
-      setErrorMsg(errObj?.message || "Failed to launch Paystack gateway.");
-      toast.error("Could not open Paystack checkout.");
+      const msg = errObj?.message || "Failed to launch Paystack gateway.";
+      setErrorMsg(msg);
+      toast.error(msg);
     }
   };
 

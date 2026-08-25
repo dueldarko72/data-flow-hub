@@ -4,7 +4,6 @@ import PaystackPop from "@paystack/inline-js";
 export const DEFAULT_PAYSTACK_KEY =
   import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || "pk_test_89f8b1554a54065b1017190634b2755f9883993e";
 
-
 export type PaystackPaymentChannel = "card" | "mobile_money" | "bank" | "ussd" | "qr";
 
 export interface PaystackCheckoutOptions {
@@ -32,6 +31,16 @@ export interface PaystackCheckoutOptions {
   onError?: (err: Error) => void;
 }
 
+let paystackInstance: InstanceType<typeof PaystackPop> | null = null;
+
+function getPaystackInstance() {
+  if (typeof window === "undefined") return null;
+  if (!paystackInstance) {
+    paystackInstance = new PaystackPop();
+  }
+  return paystackInstance;
+}
+
 /**
  * Triggers Paystack Inline Modal popup safely using the official SDK.
  */
@@ -50,10 +59,13 @@ export async function openPaystackCheckout(options: PaystackCheckoutOptions): Pr
   const amountInPesewas = Math.round(options.amount * 100);
   const ref =
     options.reference ||
-    `DF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    `DF-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
   try {
-    const paystack = new PaystackPop();
+    const paystack = getPaystackInstance();
+    if (!paystack) {
+      throw new Error("Paystack checkout is only supported in a browser environment.");
+    }
 
     paystack.newTransaction({
       key: publicKey,
@@ -82,6 +94,15 @@ export async function openPaystackCheckout(options: PaystackCheckoutOptions): Pr
           options.onCancel();
         }
       },
+      onError: (err: { message?: string } | Error) => {
+        const error =
+          err instanceof Error
+            ? err
+            : new Error((err as { message?: string })?.message || "Payment initialization failed");
+        if (options.onError) {
+          options.onError(error);
+        }
+      },
     });
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -93,3 +114,4 @@ export async function openPaystackCheckout(options: PaystackCheckoutOptions): Pr
     }
   }
 }
+
