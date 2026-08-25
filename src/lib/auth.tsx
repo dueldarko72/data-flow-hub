@@ -246,10 +246,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (isSupabaseActive) {
-      // Find the user's email from the Supabase profiles table
+      // Find the user's email AND stored name from Supabase profiles
       const { data, error } = await supabase
         .from("profiles")
-        .select("email")
+        .select("email, name")
         .eq("phone", cleanPhone)
         .maybeSingle();
 
@@ -271,7 +271,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (authData.user) {
         const profile = await fetchSupabaseProfile(authData.user.id, data.email);
-        setUser(profile);
+
+        // Auto-correct: if the typed name doesn't match the stored name, use the stored name.
+        // This silently fixes the mismatch so the user gets the right account without friction.
+        const correctedName = (data.name || profile.name || name).trim();
+        if (correctedName && correctedName !== profile.name) {
+          setUser({ ...profile, name: correctedName });
+        } else {
+          setUser(profile);
+        }
       }
     } else {
       const cred = await verifyPhoneIdentity(name, phone);

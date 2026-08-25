@@ -367,9 +367,9 @@ function PaymentReceiptOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4"
       style={{
-        background: "rgba(0,0,0,0.85)",
+        background: "rgba(0,0,0,0.88)",
         backdropFilter: "blur(12px)",
         opacity: visible ? 1 : 0,
         transition: "opacity 0.3s ease",
@@ -377,15 +377,15 @@ function PaymentReceiptOverlay({
     >
       <div
         ref={receiptRef}
+        className="my-4 w-full sm:my-0"
         style={{
           transform: visible ? "scale(1) translateY(0)" : "scale(0.9) translateY(30px)",
           transition: "transform 0.35s cubic-bezier(0.34,1.56,0.64,1)",
           maxWidth: 440,
-          width: "100%",
         }}
       >
         {/* Receipt card */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0f0f17] shadow-2xl">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#0f0f17] shadow-2xl">
           {/* Glow top */}
           <div
             className="pointer-events-none absolute -top-20 left-1/2 h-40 w-80 -translate-x-1/2 rounded-full opacity-40 blur-3xl"
@@ -393,24 +393,24 @@ function PaymentReceiptOverlay({
           />
 
           {/* Header */}
-          <div className="relative px-8 pb-6 pt-10 text-center">
+          <div className="relative px-5 pb-5 pt-7 text-center sm:px-8 sm:pb-6 sm:pt-10">
             {/* Animated check */}
             <div
-              className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border-4 border-green-400/30 bg-green-500/10"
+              className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full border-4 border-green-400/30 bg-green-500/10 sm:mb-4 sm:h-20 sm:w-20"
               style={{ animation: "pulse 2s infinite" }}
             >
-              <CheckCircle className="h-10 w-10 text-green-400" />
+              <CheckCircle className="h-7 w-7 text-green-400 sm:h-10 sm:w-10" />
             </div>
 
-            <div className="text-xs font-semibold uppercase tracking-widest text-green-400">
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-green-400 sm:text-xs">
               Payment Successful
             </div>
-            <div className="mt-1 text-4xl font-bold text-white">
+            <div className="mt-1 text-3xl font-bold text-white sm:text-4xl">
               {formatGHS(order.amount)}
             </div>
-            <div className="mt-1 text-sm text-white/50">
+            <div className="mt-1 text-xs text-white/50 sm:text-sm">
               {new Date(order.createdAt).toLocaleString("en-GH", {
-                dateStyle: "long",
+                dateStyle: "medium",
                 timeStyle: "short",
               })}
             </div>
@@ -424,14 +424,14 @@ function PaymentReceiptOverlay({
           </div>
 
           {/* Details */}
-          <div className="px-8 py-6 space-y-3">
-            <ReceiptRow icon={<Hash className="h-4 w-4" />} label="Reference" value={order.reference} mono />
-            <ReceiptRow icon={<Wifi className="h-4 w-4" />} label="Bundle" value={`${order.bundleName} — ${order.gb}GB`} />
-            <ReceiptRow icon={<Zap className="h-4 w-4" />} label="Network" value={order.network} />
-            <ReceiptRow icon={<Phone className="h-4 w-4" />} label="Recipient" value={order.recipient} />
-            <ReceiptRow icon={<CreditCard className="h-4 w-4" />} label="Payment" value={order.paymentMethod || "Paystack"} />
+          <div className="px-5 py-4 space-y-2.5 sm:px-8 sm:py-6 sm:space-y-3">
+            <ReceiptRow icon={<Hash className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Reference" value={order.reference} mono />
+            <ReceiptRow icon={<Wifi className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Bundle" value={`${order.bundleName} — ${order.gb}GB`} />
+            <ReceiptRow icon={<Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Network" value={order.network} />
+            <ReceiptRow icon={<Phone className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Recipient" value={order.recipient} />
+            <ReceiptRow icon={<CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Payment" value={order.paymentMethod || "Paystack"} />
             <ReceiptRow
-              icon={<Calendar className="h-4 w-4" />}
+              icon={<Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
               label="Delivery"
               value={deliveryLabel(order.group)}
               accent
@@ -439,7 +439,7 @@ function PaymentReceiptOverlay({
           </div>
 
           {/* Status pill */}
-          <div className="mx-8 mb-6 flex items-center justify-between rounded-xl bg-white/5 px-4 py-3">
+          <div className="mx-5 mb-4 flex items-center justify-between rounded-xl bg-white/5 px-4 py-2.5 sm:mx-8 sm:mb-6 sm:py-3">
             <span className="text-xs text-white/50">Order Status</span>
             <span className="flex items-center gap-1.5 text-xs font-semibold text-green-400">
               <span className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
@@ -448,8 +448,8 @@ function PaymentReceiptOverlay({
           </div>
 
           {/* Delivery progress bar */}
-          <div className="mx-8 mb-6">
-            <div className="text-[11px] text-white/40 mb-2">Delivery progress</div>
+          <div className="mx-5 mb-4 sm:mx-8 sm:mb-6">
+            <div className="text-[11px] text-white/40 mb-1.5">Delivery progress</div>
             <div className="relative h-2 w-full overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full"
@@ -482,10 +482,10 @@ function PaymentReceiptOverlay({
           </div>
 
           {/* Actions */}
-          <div className="px-8 py-6 space-y-3">
+          <div className="px-5 py-4 space-y-2.5 sm:px-8 sm:py-6 sm:space-y-3">
             <button
               onClick={onDownload}
-              className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-all"
+              className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-all active:scale-95"
               style={{
                 background: `linear-gradient(135deg, ${networkColor}aa, #6C63FF)`,
               }}
@@ -495,7 +495,7 @@ function PaymentReceiptOverlay({
             </button>
             <button
               onClick={handleClose}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm font-medium text-white/70 hover:bg-white/5 transition-all"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm font-medium text-white/70 hover:bg-white/5 active:scale-95 transition-all"
             >
               View All Orders
               <ArrowRight className="h-4 w-4" />
@@ -503,7 +503,7 @@ function PaymentReceiptOverlay({
           </div>
 
           {/* Footer */}
-          <div className="border-t border-white/5 px-8 py-4 text-center text-[11px] text-white/30">
+          <div className="border-t border-white/5 px-5 py-3 text-center text-[10px] text-white/30 sm:px-8 sm:py-4 sm:text-[11px]">
             Thank you for choosing DataFlex • Your data is on its way!
           </div>
         </div>
