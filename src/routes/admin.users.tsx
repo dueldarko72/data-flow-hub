@@ -84,6 +84,7 @@ function AdminUsers() {
   const [isNewBundle, setIsNewBundle] = useState(false);
   const [deleteBundleId, setDeleteBundleId] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [quickDeleteMode, setQuickDeleteMode] = useState(false);
 
   // History Dialog State
   const [historyUser, setHistoryUser] = useState<AdminUser | null>(null);
@@ -116,6 +117,12 @@ function AdminUsers() {
         fetchUsersAndOrders();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "bundles" }, async () => {
+        if (bundleUser) {
+          const fresh = await loadUserBundles(bundleUser.id);
+          setUserBundles(fresh);
+        }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_bundles" }, async () => {
         if (bundleUser) {
           const fresh = await loadUserBundles(bundleUser.id);
           setUserBundles(fresh);
@@ -180,18 +187,49 @@ function AdminUsers() {
     }
   };
 
-  const handleDeleteUserBundle = async () => {
-    if (!bundleUser || !deleteBundleId) return;
+  const executeDeleteBundle = async (targetId: string) => {
+    if (!bundleUser) return;
+    const deletedBundle = userBundles.find((b) => b.id === targetId);
+
+    // 1. Instantly remove from state with zero delay (0ms)
+    setUserBundles((prev) => prev.filter((b) => b.id !== targetId));
+    setDeleteBundleId(null);
+
+    // 2. Immediate feedback toast with instant Undo action
+    toast.success("Fast delivery bundle removed", {
+      action: deletedBundle
+        ? {
+            label: "Undo",
+            onClick: async () => {
+              if (deletedBundle && bundleUser) {
+                setUserBundles((prev) => [...prev, deletedBundle]);
+                try {
+                  await upsertUserBundle(bundleUser.id, deletedBundle);
+                  toast.success(`Restored ${deletedBundle.name}`);
+                } catch {
+                  toast.error("Failed to restore bundle");
+                }
+              }
+            },
+          }
+        : undefined,
+    });
+
+    // 3. Asynchronously perform backend deletion
     try {
-      await deleteUserBundle(bundleUser.id, deleteBundleId);
-      const data = await loadUserBundles(bundleUser.id);
-      setUserBundles(data);
-      toast.success("Fast delivery bundle removed");
-    } catch {
-      toast.error("Failed to delete bundle");
-    } finally {
-      setDeleteBundleId(null);
+      await deleteUserBundle(bundleUser.id, targetId);
+    } catch (err) {
+      console.error("Failed to delete user bundle on server:", err);
+      if (deletedBundle) {
+        setUserBundles((prev) => [...prev, deletedBundle]);
+      }
+      toast.error("Failed to delete bundle on server");
     }
+  };
+
+  const handleDeleteUserBundle = async () => {
+    if (!deleteBundleId) return;
+    await executeDeleteBundle(deleteBundleId);
   };
 
   const handleResetUserBundles = async () => {
@@ -505,14 +543,31 @@ function AdminUsers() {
                   </div>
                 </div>
 
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setConfirmReset(true)}
-                  className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1 self-start sm:self-auto"
-                >
-                  <RotateCcw className="h-3 w-3" /> Reset to Default
-                </Button>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <Button
+                    size="sm"
+                    variant={quickDeleteMode ? "destructive" : "outline"}
+                    onClick={() => setQuickDeleteMode(!quickDeleteMode)}
+                    className={`h-7 px-2.5 text-[11px] gap-1 transition-all ${
+                      quickDeleteMode
+                        ? "bg-destructive/20 text-destructive border-destructive/40 hover:bg-destructive/30 shadow-sm"
+                        : "text-muted-foreground hover:text-foreground border-border/60"
+                    }`}
+                    title="When enabled, clicking trash removes fast bundles instantly with 1-click"
+                  >
+                    <Zap className="h-3 w-3" />
+                    {quickDeleteMode ? "Quick Delete ON" : "Quick Delete"}
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setConfirmReset(true)}
+                    className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Reset to Default
+                  </Button>
+                </div>
               </div>
 
               <div className="rounded-xl border border-border/50 bg-card/60 overflow-x-auto">
@@ -568,8 +623,19 @@ function AdminUsers() {
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className="h-7 w-7 text-destructive"
-                                onClick={() => setDeleteBundleId(b.id)}
+                                className={`h-7 w-7 transition-all ${
+                                  quickDeleteMode
+                                    ? "text-destructive hover:bg-destructive/20 bg-destructive/10 ring-1 ring-destructive/40"
+                                    : "text-destructive hover:bg-destructive/10"
+                                }`}
+                                title={quickDeleteMode ? "Click to delete instantly (1-click)" : "Delete bundle"}
+                                onClick={() => {
+                                  if (quickDeleteMode) {
+                                    executeDeleteBundle(b.id);
+                                  } else {
+                                    setDeleteBundleId(b.id);
+                                  }
+                                }}
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -763,6 +829,18 @@ function AdminUsers() {
               bundle catalog.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="flex items-center gap-2 py-2 px-1 text-xs text-muted-foreground border-t border-border/40">
+            <input
+              type="checkbox"
+              id="quick-delete-checkbox"
+              checked={quickDeleteMode}
+              onChange={(e) => setQuickDeleteMode(e.target.checked)}
+              className="rounded accent-primary cursor-pointer h-3.5 w-3.5"
+            />
+            <label htmlFor="quick-delete-checkbox" className="cursor-pointer select-none">
+              Quick delete (skip confirmation for the rest of this session)
+            </label>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction

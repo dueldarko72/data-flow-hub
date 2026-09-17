@@ -1,6 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Download, ShoppingBag, CheckCircle, ArrowRight, Receipt, Wifi, Phone, Calendar, Hash, CreditCard, Zap } from "lucide-react";
+import {
+  Search,
+  Download,
+  ShoppingBag,
+  CheckCircle,
+  ArrowRight,
+  Receipt,
+  Wifi,
+  Phone,
+  Calendar,
+  Hash,
+  CreditCard,
+  Zap,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -206,13 +219,19 @@ function OrdersPage() {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                {["all", "pending", "processing", "completed", "failed", "cancelled", "refunded"].map(
-                  (s) => (
-                    <SelectItem key={s} value={s} className="capitalize">
-                      {s}
-                    </SelectItem>
-                  ),
-                )}
+                {[
+                  "all",
+                  "pending",
+                  "processing",
+                  "completed",
+                  "failed",
+                  "cancelled",
+                  "refunded",
+                ].map((s) => (
+                  <SelectItem key={s} value={s} className="capitalize">
+                    {s}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -273,11 +292,7 @@ function OrdersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setReceiptOrder(o)}
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => setReceiptOrder(o)}>
                           <Receipt className="mr-1 h-3 w-3" />
                           Receipt
                         </Button>
@@ -356,14 +371,14 @@ function PaymentReceiptOverlay({
     setTimeout(onClose, 300);
   };
 
-  const networkColor =
-    order.network?.toLowerCase().includes("mtn")
-      ? "#FFCC00"
-      : order.network?.toLowerCase().includes("vodafone") || order.network?.toLowerCase().includes("telecel")
-        ? "#E10000"
-        : order.network?.toLowerCase().includes("airteltigo")
-          ? "#CC0066"
-          : "#6C63FF";
+  const networkColor = order.network?.toLowerCase().includes("mtn")
+    ? "#FFCC00"
+    : order.network?.toLowerCase().includes("vodafone") ||
+        order.network?.toLowerCase().includes("telecel")
+      ? "#E10000"
+      : order.network?.toLowerCase().includes("airteltigo")
+        ? "#CC0066"
+        : "#6C63FF";
 
   return (
     <div
@@ -425,11 +440,32 @@ function PaymentReceiptOverlay({
 
           {/* Details */}
           <div className="px-5 py-4 space-y-2.5 sm:px-8 sm:py-6 sm:space-y-3">
-            <ReceiptRow icon={<Hash className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Reference" value={order.reference} mono />
-            <ReceiptRow icon={<Wifi className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Bundle" value={`${order.bundleName} — ${order.gb}GB`} />
-            <ReceiptRow icon={<Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Network" value={order.network} />
-            <ReceiptRow icon={<Phone className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Recipient" value={order.recipient} />
-            <ReceiptRow icon={<CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />} label="Payment" value={order.paymentMethod || "Paystack"} />
+            <ReceiptRow
+              icon={<Hash className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              label="Reference"
+              value={order.reference}
+              mono
+            />
+            <ReceiptRow
+              icon={<Wifi className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              label="Bundle"
+              value={`${order.bundleName} — ${order.gb}GB`}
+            />
+            <ReceiptRow
+              icon={<Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              label="Network"
+              value={order.network}
+            />
+            <ReceiptRow
+              icon={<Phone className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              label="Recipient"
+              value={order.recipient}
+            />
+            <ReceiptRow
+              icon={<CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              label="Payment"
+              value={order.paymentMethod || "Paystack"}
+            />
             <ReceiptRow
               icon={<Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
               label="Delivery"
@@ -533,7 +569,11 @@ function ReceiptRow({
       </div>
       <span
         className={`text-right text-sm truncate max-w-[55%] ${
-          mono ? "font-mono text-xs text-white/60" : accent ? "text-primary font-semibold" : "text-white font-medium"
+          mono
+            ? "font-mono text-xs text-white/60"
+            : accent
+              ? "text-primary font-semibold"
+              : "text-white font-medium"
         }`}
       >
         {value}
@@ -610,4 +650,3 @@ function Row({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-

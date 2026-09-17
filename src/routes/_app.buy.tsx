@@ -103,11 +103,7 @@ function BuyPage() {
 
     try {
       const methodLabel =
-        method === "momo"
-          ? "Paystack (MoMo)"
-          : method === "card"
-            ? "Paystack (Card)"
-            : "Paystack";
+        method === "momo" ? "Paystack (MoMo)" : method === "card" ? "Paystack (Card)" : "Paystack";
 
       // 1. Create order in Supabase with pending status
       await addOrder(
@@ -145,7 +141,11 @@ function BuyPage() {
         metadata: {
           custom_fields: [
             { display_name: "Recipient", variable_name: "recipient", value: recipient },
-            { display_name: "Bundle", variable_name: "bundle", value: `${bundle.name} (${bundle.gb}GB)` },
+            {
+              display_name: "Bundle",
+              variable_name: "bundle",
+              value: `${bundle.name} (${bundle.gb}GB)`,
+            },
             { display_name: "Network", variable_name: "network", value: bundle.network },
           ],
         },
@@ -315,11 +315,15 @@ function BuyPage() {
                     <label
                       key={m.v}
                       className={`flex cursor-pointer items-center justify-between rounded-xl border p-3.5 transition ${
-                        method === m.v ? "border-primary bg-primary/5 shadow-sm" : "border-border/60 hover:bg-card/50"
+                        method === m.v
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border/60 hover:bg-card/50"
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 rounded-lg p-2 ${method === m.v ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                        <div
+                          className={`mt-0.5 rounded-lg p-2 ${method === m.v ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                        >
                           <Icon className="h-4 w-4" />
                         </div>
                         <div>

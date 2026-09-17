@@ -45,8 +45,7 @@ export async function initializePaystackTransaction(options: PaystackCheckoutOpt
 
   const amountInPesewas = Math.round(options.amount * 100);
   const ref =
-    options.reference ||
-    `DF-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    options.reference || `DF-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 
   const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
   // Just point to /orders — Paystack appends ?trxref=REF&reference=REF automatically
@@ -59,8 +58,7 @@ export async function initializePaystackTransaction(options: PaystackCheckoutOpt
     currency: options.currency || "GHS",
     ref,
     callback_url: callbackUrl,
-    channels:
-      options.channels && options.channels.length > 0 ? options.channels : undefined,
+    channels: options.channels && options.channels.length > 0 ? options.channels : undefined,
   };
 
   if (options.metadata) {

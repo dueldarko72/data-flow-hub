@@ -30,6 +30,7 @@ import {
   loadUserBundles,
   loadUserSlowEnabled,
 } from "@/lib/admin-data";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
@@ -80,15 +81,82 @@ function Landing() {
   const [catalogVersion, setCatalogVersion] = useState(0);
   useEffect(() => {
     const bump = () => setCatalogVersion((v) => v + 1);
+
+    // 1. Current window custom events (immediate 0ms response)
+    const handleCatalogChanged = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail?.action === "delete" && detail?.bundleId) {
+        if (!detail.userId || !user || detail.userId === user.id) {
+          setCatalog((prev) => prev.filter((b) => b.id !== detail.bundleId));
+        }
+      }
+      bump();
+    };
+
+    // 2. Cross-tab BroadcastChannel (instant 0ms sync across browser tabs)
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        bc = new BroadcastChannel("dataflex:catalog-sync");
+        bc.onmessage = (evt) => {
+          const data = evt.data;
+          if (data?.action === "delete" && data?.bundleId) {
+            if (!data.userId || !user || data.userId === user.id) {
+              setCatalog((prev) => prev.filter((b) => b.id !== data.bundleId));
+            }
+          }
+          bump();
+        };
+      } catch {}
+    }
+
+    // 3. Supabase Realtime multi-client / cross-device channel
+    const currentUserId = user?.id || "guest";
+    const channel = supabase
+      .channel(`customer-catalog-realtime-${currentUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_bundles" },
+        (payload) => {
+          const rowUserId = (payload.new as any)?.user_id || (payload.old as any)?.user_id;
+          if (!user || !rowUserId || rowUserId === user.id) {
+            if (payload.eventType === "DELETE" && (payload.old as any)?.id) {
+              const deletedId = (payload.old as any).id;
+              setCatalog((prev) => prev.filter((b) => b.id !== deletedId));
+            }
+            bump();
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bundles" },
+        () => {
+          bump();
+        }
+      )
+      .on("broadcast", { event: "catalog-change" }, ({ payload }) => {
+        if (payload?.action === "delete" && payload?.bundleId) {
+          if (!payload.userId || !user || payload.userId === user.id) {
+            setCatalog((prev) => prev.filter((b) => b.id !== payload.bundleId));
+          }
+        }
+        bump();
+      })
+      .subscribe();
+
     window.addEventListener("storage", bump);
     window.addEventListener("focus", bump);
-    window.addEventListener("dataflex:catalog-changed", bump as EventListener);
+    window.addEventListener("dataflex:catalog-changed", handleCatalogChanged);
+
     return () => {
       window.removeEventListener("storage", bump);
       window.removeEventListener("focus", bump);
-      window.removeEventListener("dataflex:catalog-changed", bump as EventListener);
+      window.removeEventListener("dataflex:catalog-changed", handleCatalogChanged);
+      if (bc) bc.close();
+      supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     async function loadData() {

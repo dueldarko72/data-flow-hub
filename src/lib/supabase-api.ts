@@ -90,21 +90,33 @@ export async function fetchSupabaseUserBundles(userId: string): Promise<Bundle[]
       .eq("user_id", userId)
       .order("gb", { ascending: true });
 
-    if (!error && data && data.length > 0) {
-      const userFastBundles: Bundle[] = data.map((b) => ({
-        id: b.id,
-        network: b.network,
-        name: b.name,
-        gb: Number(b.gb),
-        price: Number(b.price),
-        validity: b.validity,
-        popular: Boolean(b.popular),
-        description: b.description || undefined,
-        group: (b.group_type || "fast") as "fast" | "slow",
-      }));
+    if (!error && data) {
+      if (data.length > 0) {
+        const userFastBundles: Bundle[] = data.map((b) => ({
+          id: b.id,
+          network: b.network,
+          name: b.name,
+          gb: Number(b.gb),
+          price: Number(b.price),
+          validity: b.validity,
+          popular: Boolean(b.popular),
+          description: b.description || undefined,
+          group: (b.group_type || "fast") as "fast" | "slow",
+        }));
 
-      // Merge: User custom fast bundles + Global 1hr-2hr delivery bundles (which auto-reflect admin changes!)
-      return [...userFastBundles, ...globalSlowBundles];
+        // Cache into localStorage so subsequent sync/loads are instantaneous
+        try {
+          localStorage.setItem(`datahub-user-bundles-${userId}`, JSON.stringify(userFastBundles));
+        } catch {}
+
+        // Merge: User custom fast bundles + Global 1hr-2hr delivery bundles
+        return [...userFastBundles, ...globalSlowBundles];
+      } else {
+        // Explicitly cleared / no custom bundles -> remove stale localStorage so deleted bundles never resurrect
+        try {
+          localStorage.removeItem(`datahub-user-bundles-${userId}`);
+        } catch {}
+      }
     }
   } catch (e) {
     console.error("Error querying user_bundles table:", e);
@@ -126,7 +138,58 @@ export async function fetchSupabaseUserBundles(userId: string): Promise<Bundle[]
   return [...globalFastBundles, ...globalSlowBundles];
 }
 
+export function broadcastCatalogChange(payload: {
+  userId: string;
+  bundleId?: string;
+  action: "upsert" | "delete" | "reset";
+  bundle?: Bundle;
+}): void {
+  // 1. Dispatch custom event in current window (immediate 0ms)
+  try {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("dataflex:catalog-changed", { detail: payload }));
+    }
+  } catch {}
+
+  // 2. Broadcast across browser tabs via BroadcastChannel (instant 0ms)
+  try {
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      const bc = new BroadcastChannel("dataflex:catalog-sync");
+      bc.postMessage(payload);
+      bc.close();
+    }
+  } catch {}
+
+  // 3. Broadcast across clients/devices via Supabase Realtime channel
+  try {
+    const channel = supabase.channel("catalog-realtime-sync");
+    channel.send({
+      type: "broadcast",
+      event: "catalog-change",
+      payload,
+    });
+  } catch {}
+}
+
 export async function upsertSupabaseUserBundle(userId: string, bundle: Bundle): Promise<void> {
+  // Immediately update localStorage
+  try {
+    const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
+    const existing: Bundle[] = raw ? JSON.parse(raw) : [];
+    const idx = existing.findIndex((b) => b.id === bundle.id);
+    if (idx >= 0) existing[idx] = bundle;
+    else existing.push(bundle);
+    localStorage.setItem(`datahub-user-bundles-${userId}`, JSON.stringify(existing));
+  } catch {}
+
+  // Instantly broadcast
+  broadcastCatalogChange({
+    userId,
+    bundleId: bundle.id,
+    action: "upsert",
+    bundle,
+  });
+
   try {
     await supabase.from("user_bundles").upsert({
       id: bundle.id,
@@ -143,47 +206,53 @@ export async function upsertSupabaseUserBundle(userId: string, bundle: Bundle): 
   } catch (e) {
     console.error("Failed to upsert to user_bundles table:", e);
   }
-
-  try {
-    const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
-    const existing: Bundle[] = raw ? JSON.parse(raw) : [];
-    const idx = existing.findIndex((b) => b.id === bundle.id);
-    if (idx >= 0) existing[idx] = bundle;
-    else existing.push(bundle);
-    localStorage.setItem(`datahub-user-bundles-${userId}`, JSON.stringify(existing));
-    window.dispatchEvent(new CustomEvent("dataflex:catalog-changed"));
-  } catch {}
 }
 
 export async function deleteSupabaseUserBundle(userId: string, bundleId: string): Promise<void> {
-  try {
-    await supabase.from("user_bundles").delete().eq("user_id", userId).eq("id", bundleId);
-  } catch (e) {
-    console.error("Failed to delete from user_bundles table:", e);
-  }
-
+  // 1. Immediately update localStorage so local cache is never stale
   try {
     const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
     if (raw) {
       const existing: Bundle[] = JSON.parse(raw);
       const filtered = existing.filter((b) => b.id !== bundleId);
-      localStorage.setItem(`datahub-user-bundles-${userId}`, JSON.stringify(filtered));
-      window.dispatchEvent(new CustomEvent("dataflex:catalog-changed"));
+      if (filtered.length > 0) {
+        localStorage.setItem(`datahub-user-bundles-${userId}`, JSON.stringify(filtered));
+      } else {
+        localStorage.removeItem(`datahub-user-bundles-${userId}`);
+      }
     }
   } catch {}
+
+  // 2. Instantly notify all channels (current window, other tabs, other devices)
+  broadcastCatalogChange({
+    userId,
+    bundleId,
+    action: "delete",
+  });
+
+  // 3. Delete from database table
+  try {
+    await supabase.from("user_bundles").delete().eq("user_id", userId).eq("id", bundleId);
+  } catch (e) {
+    console.error("Failed to delete from user_bundles table:", e);
+  }
 }
 
 export async function resetSupabaseUserBundles(userId: string): Promise<void> {
+  try {
+    localStorage.removeItem(`datahub-user-bundles-${userId}`);
+  } catch {}
+
+  broadcastCatalogChange({
+    userId,
+    action: "reset",
+  });
+
   try {
     await supabase.from("user_bundles").delete().eq("user_id", userId);
   } catch (e) {
     console.error("Failed to reset user_bundles table:", e);
   }
-
-  try {
-    localStorage.removeItem(`datahub-user-bundles-${userId}`);
-    window.dispatchEvent(new CustomEvent("dataflex:catalog-changed"));
-  } catch {}
 }
 
 // ----------------------------------------------------
@@ -675,11 +744,7 @@ export async function updateSupabaseSettings(
     payload.paystack_public_key = s.paystackPublicKey;
   }
 
-  const { data, error } = await supabase
-    .from("settings")
-    .upsert(payload)
-    .select()
-    .single();
+  const { data, error } = await supabase.from("settings").upsert(payload).select().single();
 
   if (error || !data) {
     console.error("Error updating settings in Supabase:", error);
