@@ -11,6 +11,8 @@ import {
   fetchSupabaseAvailableBalance,
   fetchSupabaseSettings,
   updateSupabaseSettings,
+  fetchFastOnlyMode,
+  setFastOnlyMode,
   fetchSupabaseAnalytics,
   fetchSupabaseOrders,
   updateSupabaseUserBalance,
@@ -325,10 +327,9 @@ export async function upsertUserBundle(userId: string, b: Bundle): Promise<void>
 export async function deleteUserBundle(
   userId: string,
   bundleId: string,
-  remainingFastBundles?: Bundle[]
 ): Promise<void> {
   const { deleteSupabaseUserBundle } = await import("./supabase-api");
-  await deleteSupabaseUserBundle(userId, bundleId, remainingFastBundles);
+  await deleteSupabaseUserBundle(userId, bundleId);
   recordAudit("bundle", `User bundle deleted: ${bundleId}`, userId);
 }
 
@@ -349,7 +350,16 @@ export function loadUserSlowEnabled(userId: string): boolean {
 export function setUserSlowEnabled(userId: string, enabled: boolean): void {
   try {
     localStorage.setItem(`datahub-user-slow-${userId}`, String(enabled));
-    window.dispatchEvent(new CustomEvent("dataflex:catalog-changed"));
+    window.dispatchEvent(
+      new CustomEvent("dataflex:catalog-changed", {
+        detail: { action: "queue-access", userId, enabled },
+      })
+    );
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      const bc = new BroadcastChannel("dataflex:catalog-sync");
+      bc.postMessage({ action: "queue-access", userId, enabled });
+      bc.close();
+    }
   } catch {}
   recordAudit("user", `User 1-2hr delivery ${enabled ? "enabled" : "disabled"}`, userId);
 }
@@ -449,6 +459,7 @@ export interface SystemSettings {
   autoApprove: boolean;
   maintenance: boolean;
   maintenanceMode: boolean;
+  fastOnlyMode?: boolean;
   minWithdrawal: number;
   paystackPublicKey?: string;
 }
@@ -461,4 +472,14 @@ export async function loadSettings(): Promise<SystemSettings> {
 
 export async function saveSettings(s: Partial<SystemSettings>): Promise<SystemSettings> {
   return await updateSupabaseSettings(s);
+}
+
+export async function loadFastOnlyMode(): Promise<boolean> {
+  return await fetchFastOnlyMode();
+}
+
+export async function saveFastOnlyMode(enabled: boolean): Promise<boolean> {
+  const res = await setFastOnlyMode(enabled);
+  recordAudit("settings", `Fast Delivery Only Mode ${enabled ? "activated (Red Switch ON)" : "deactivated (Red Switch OFF)"}`);
+  return res;
 }

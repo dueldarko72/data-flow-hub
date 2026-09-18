@@ -29,6 +29,7 @@ import {
   ensureAdminUser,
   loadUserBundles,
   loadUserSlowEnabled,
+  loadFastOnlyMode,
 } from "@/lib/admin-data";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -75,12 +76,21 @@ function Landing() {
   const [pendingBar, setPendingBar] = useState<null | "fast" | "slow">(null);
   const [catalog, setCatalog] = useState<Bundle[]>(DEFAULT_USER_CATALOG);
   const [slowEnabled, setSlowEnabled] = useState(true);
+  const [fastOnlyMode, setFastOnlyMode] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
 
   // Resolve the customer's own allocated catalogue (set by the admin).
   const [catalogVersion, setCatalogVersion] = useState(0);
   useEffect(() => {
     const bump = () => setCatalogVersion((v) => v + 1);
+
+    // Initial load of fastOnlyMode
+    loadFastOnlyMode().then((val) => {
+      setFastOnlyMode(val);
+      if (val) {
+        setActiveBar((prev) => (prev === "slow" ? "fast" : prev));
+      }
+    });
 
     // 1. Current window custom events (immediate 0ms response)
     const handleCatalogChanged = (e: Event) => {
@@ -90,11 +100,27 @@ function Landing() {
           setCatalog((prev) => prev.filter((b) => b.id !== detail.bundleId));
         }
       }
+      if (detail?.action === "queue-access") {
+        if (!user || detail.userId === user.id) {
+          setSlowEnabled(Boolean(detail.enabled));
+        }
+      }
       bump();
     };
 
-    // 2. Cross-tab BroadcastChannel (instant 0ms sync across browser tabs)
+    const handleFastOnlyChanged = (e: Event) => {
+      const enabled = (e as CustomEvent)?.detail?.enabled;
+      if (typeof enabled === "boolean") {
+        setFastOnlyMode(enabled);
+        if (enabled) {
+          setActiveBar((prev) => (prev === "slow" ? "fast" : prev));
+        }
+      }
+    };
+
+    // 2. Cross-tab BroadcastChannels (instant 0ms sync across browser tabs)
     let bc: BroadcastChannel | null = null;
+    let fastBc: BroadcastChannel | null = null;
     if (typeof window !== "undefined" && "BroadcastChannel" in window) {
       try {
         bc = new BroadcastChannel("dataflex:catalog-sync");
@@ -105,7 +131,22 @@ function Landing() {
               setCatalog((prev) => prev.filter((b) => b.id !== data.bundleId));
             }
           }
+          if (data?.action === "queue-access") {
+            if (!user || data.userId === user.id) {
+              setSlowEnabled(Boolean(data.enabled));
+            }
+          }
           bump();
+        };
+
+        fastBc = new BroadcastChannel("dataflex:fast-only-channel");
+        fastBc.onmessage = (evt) => {
+          if (typeof evt.data?.enabled === "boolean") {
+            setFastOnlyMode(evt.data.enabled);
+            if (evt.data.enabled) {
+              setActiveBar((prev) => (prev === "slow" ? "fast" : prev));
+            }
+          }
         };
       } catch {}
     }
@@ -147,17 +188,28 @@ function Landing() {
         }
         bump();
       })
+      .on("broadcast", { event: "fast-only-change" }, ({ payload }) => {
+        if (payload && typeof payload.enabled === "boolean") {
+          setFastOnlyMode(payload.enabled);
+          if (payload.enabled) {
+            setActiveBar((prev) => (prev === "slow" ? "fast" : prev));
+          }
+        }
+      })
       .subscribe();
 
     window.addEventListener("storage", bump);
     window.addEventListener("focus", bump);
     window.addEventListener("dataflex:catalog-changed", handleCatalogChanged);
+    window.addEventListener("dataflex:fast-only-changed", handleFastOnlyChanged);
 
     return () => {
       window.removeEventListener("storage", bump);
       window.removeEventListener("focus", bump);
       window.removeEventListener("dataflex:catalog-changed", handleCatalogChanged);
+      window.removeEventListener("dataflex:fast-only-changed", handleFastOnlyChanged);
       if (bc) bc.close();
+      if (fastBc) fastBc.close();
       supabase.removeChannel(channel);
     };
   }, [user]);
@@ -337,16 +389,24 @@ function Landing() {
               onClick={() => handleBarTap("fast")}
               className={`w-full rounded-lg bg-black px-3 py-3 text-sm font-semibold text-white transition hover:bg-black/85 ${activeBar === "fast" ? "ring-2 ring-white/60" : ""}`}
             >
-              Fast delivery
+              {fastOnlyMode ? (
+                <span className="font-extrabold text-base tracking-wide uppercase">
+                  Buy data bundle
+                </span>
+              ) : (
+                "Fast delivery"
+              )}
             </button>
-            <button
-              type="button"
-              onClick={() => handleBarTap("slow")}
-              disabled={!slowEnabled}
-              className={`w-full rounded-lg bg-black px-3 py-3 text-sm font-semibold text-white transition hover:bg-black/85 disabled:opacity-40 ${activeBar === "slow" ? "ring-2 ring-white/60" : ""}`}
-            >
-              1hr – 2hr delivery
-            </button>
+            {!fastOnlyMode && (
+              <button
+                type="button"
+                onClick={() => handleBarTap("slow")}
+                disabled={!slowEnabled}
+                className={`w-full rounded-lg bg-black px-3 py-3 text-sm font-semibold text-white transition hover:bg-black/85 disabled:opacity-40 ${activeBar === "slow" ? "ring-2 ring-white/60" : ""}`}
+              >
+                1hr – 2hr delivery
+              </button>
+            )}
             <div className="text-center text-[9px] text-primary-foreground/70">
               Tap a bar to view bundles
             </div>
@@ -357,7 +417,15 @@ function Landing() {
         {activeBar && (
           <div id="bundle-list" className="mt-10">
             <h2 className="text-center text-xl font-semibold text-gradient-gold">
-              {activeBar === "fast" ? "Fast delivery" : "1hr – 2hr delivery"}
+              {activeBar === "fast" ? (
+                fastOnlyMode ? (
+                  <span className="font-extrabold">Buy data bundle</span>
+                ) : (
+                  "Fast delivery"
+                )
+              ) : (
+                "1hr – 2hr delivery"
+              )}
             </h2>
             <div className="mt-6 flex flex-wrap justify-center gap-4">
               {visible.map((b) => (

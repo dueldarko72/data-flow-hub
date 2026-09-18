@@ -46,6 +46,8 @@ import {
   updateOrderStatus,
   loadSettings,
   saveSettings,
+  loadFastOnlyMode,
+  saveFastOnlyMode,
   type AdminUser,
   type SystemSettings,
 } from "@/lib/admin-data";
@@ -182,6 +184,25 @@ function AdminOverview() {
       toast.success(`Maintenance mode ${checked ? "activated" : "deactivated"}`);
     } catch {
       toast.error("Failed to update maintenance mode");
+    }
+  };
+
+  const handleToggleFastOnly = async (checked: boolean) => {
+    try {
+      setSettings((prev) => (prev ? { ...prev, fastOnlyMode: checked } : null));
+      await saveFastOnlyMode(checked);
+      if (checked) {
+        toast.success(
+          "Fast Delivery Only Mode ACTIVATED! (Standard 1hr-2hr bar hidden & renamed to 'Buy data bundle' across all storefronts)",
+          { duration: 4500 }
+        );
+      } else {
+        toast.info("Standard 1hr-2hr delivery bar restored on customer storefront.", {
+          duration: 3500,
+        });
+      }
+    } catch {
+      toast.error("Failed to update display mode");
     }
   };
 
@@ -563,6 +584,58 @@ function AdminOverview() {
             </p>
 
             <div className="mt-4 space-y-4">
+              {/* Prominent Red Switch for Fast Delivery Only Mode */}
+              <div
+                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border p-3.5 transition-all ${
+                  settings?.fastOnlyMode
+                    ? "border-red-500/60 bg-red-500/10 shadow-[0_0_18px_rgba(239,68,68,0.25)] ring-1 ring-red-500/40"
+                    : "border-border/60 bg-card/40 hover:border-border"
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                        settings?.fastOnlyMode
+                          ? "bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]"
+                          : "bg-muted-foreground/40"
+                      }`}
+                    />
+                    <span className="text-xs font-bold text-foreground">
+                      Fast Delivery Only Mode
+                    </span>
+                    {settings?.fastOnlyMode ? (
+                      <Badge className="bg-red-600 hover:bg-red-600 text-white font-extrabold text-[10px] px-2 py-0 animate-pulse">
+                        RED SWITCH ON
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground px-1.5 py-0">
+                        OFF (Default)
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    When turned ON: Hides the <strong className="text-foreground font-semibold">(standard 1hr-2hr)</strong> bar, leaving only the <strong className="text-foreground font-semibold">(Fast delivery)</strong> bar which boldly changes to <strong className="text-foreground font-bold">(Buy data bundle)</strong> on every storefront in real time.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+                  <span
+                    className={`text-[11px] font-bold uppercase tracking-wider ${
+                      settings?.fastOnlyMode ? "text-red-500" : "text-muted-foreground"
+                    }`}
+                  >
+                    {settings?.fastOnlyMode ? "ACTIVE" : "OFF"}
+                  </span>
+                  <Switch
+                    checked={settings?.fastOnlyMode ?? false}
+                    onCheckedChange={handleToggleFastOnly}
+                    className="border-2 border-red-500/40 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600 focus-visible:ring-red-500"
+                    title="Toggle Fast Delivery Only Mode"
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center justify-between rounded-xl border border-border/50 bg-card/30 p-3">
                 <div className="space-y-0.5">
                   <div className="text-xs font-semibold">Auto-Approve Orders</div>

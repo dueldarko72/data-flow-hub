@@ -106,15 +106,8 @@ export async function fetchSupabaseUserBundles(userId: string): Promise<Bundle[]
       .order("gb", { ascending: true });
 
     if (!error && data) {
-      // Check if customer explicitly has 0 fast delivery plans (tombstone)
-      const hasTombstone = data.some((b) => b.id === "__NO_FAST_BUNDLES__");
-      if (hasTombstone) {
-        return [...globalSlowBundles];
-      }
-
-      const activeCustom = data.filter((b) => b.id !== "__NO_FAST_BUNDLES__");
-      if (activeCustom.length > 0) {
-        const userFastBundles: Bundle[] = activeCustom.map((b) => ({
+      if (data.length > 0) {
+        const userFastBundles: Bundle[] = data.map((b) => ({
           id: b.id,
           network: b.network,
           name: b.name,
@@ -134,7 +127,7 @@ export async function fetchSupabaseUserBundles(userId: string): Promise<Bundle[]
         // Merge: User custom fast bundles + Global 1hr-2hr delivery bundles
         return [...userFastBundles, ...globalSlowBundles];
       } else {
-        // Explicitly cleared / no custom bundles -> remove stale localStorage
+        // Explicitly cleared / no custom bundles -> remove stale localStorage so deleted bundles never resurrect
         try {
           localStorage.removeItem(`datahub-user-bundles-${userId}`);
         } catch {}
@@ -193,6 +186,36 @@ export function broadcastCatalogChange(payload: {
   } catch {}
 }
 
+export function broadcastFastOnlyMode(enabled: boolean): void {
+  // 1. In-window custom event (instant 0ms)
+  try {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("dataflex:fast-only-changed", { detail: { enabled } })
+      );
+    }
+  } catch {}
+
+  // 2. Broadcast across browser tabs via BroadcastChannel (instant 0ms)
+  try {
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      const bc = new BroadcastChannel("dataflex:fast-only-channel");
+      bc.postMessage({ enabled });
+      bc.close();
+    }
+  } catch {}
+
+  // 3. Broadcast across clients/devices via Supabase Realtime channel
+  try {
+    const channel = supabase.channel("catalog-realtime-sync");
+    channel.send({
+      type: "broadcast",
+      event: "fast-only-change",
+      payload: { enabled },
+    });
+  } catch {}
+}
+
 export async function upsertSupabaseUserBundle(userId: string, bundle: Bundle): Promise<void> {
   // Immediately update localStorage
   try {
@@ -230,24 +253,17 @@ export async function upsertSupabaseUserBundle(userId: string, bundle: Bundle): 
   }
 }
 
-export async function deleteSupabaseUserBundle(
-  userId: string,
-  bundleId: string,
-  remainingFastBundles?: Bundle[]
-): Promise<void> {
+export async function deleteSupabaseUserBundle(userId: string, bundleId: string): Promise<void> {
   // 1. Immediately update localStorage so local cache is never stale
   try {
-    if (remainingFastBundles !== undefined) {
-      localStorage.setItem(
-        `datahub-user-bundles-${userId}`,
-        JSON.stringify(remainingFastBundles)
-      );
-    } else {
-      const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
-      if (raw) {
-        const existing: Bundle[] = JSON.parse(raw);
-        const filtered = existing.filter((b) => b.id !== bundleId);
+    const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
+    if (raw) {
+      const existing: Bundle[] = JSON.parse(raw);
+      const filtered = existing.filter((b) => b.id !== bundleId);
+      if (filtered.length > 0) {
         localStorage.setItem(`datahub-user-bundles-${userId}`, JSON.stringify(filtered));
+      } else {
+        localStorage.removeItem(`datahub-user-bundles-${userId}`);
       }
     }
   } catch {}
@@ -259,49 +275,9 @@ export async function deleteSupabaseUserBundle(
     action: "delete",
   });
 
-  // 3. Persist remaining catalog or tombstone to user_bundles table
+  // 3. Delete from database table
   try {
-    // Delete the target bundle row
     await supabase.from("user_bundles").delete().eq("user_id", userId).eq("id", bundleId);
-
-    if (remainingFastBundles !== undefined) {
-      if (remainingFastBundles.length === 0) {
-        // Save tombstone so query knows this customer explicitly has 0 fast bundles!
-        await supabase.from("user_bundles").upsert({
-          id: "__NO_FAST_BUNDLES__",
-          user_id: userId,
-          network: "MTN",
-          name: "None",
-          gb: 0,
-          price: 0,
-          validity: "none",
-          popular: false,
-          group_type: "fast",
-        });
-      } else {
-        // Save all remaining fast bundles under this user ID so the customer has their own saved catalog
-        for (const b of remainingFastBundles) {
-          await supabase.from("user_bundles").upsert({
-            id: b.id,
-            user_id: userId,
-            network: b.network,
-            name: b.name,
-            gb: b.gb,
-            price: b.price,
-            validity: b.validity,
-            popular: b.popular || false,
-            description: b.description || null,
-            group_type: b.group || "fast",
-          });
-        }
-        // Remove tombstone if present
-        await supabase
-          .from("user_bundles")
-          .delete()
-          .eq("user_id", userId)
-          .eq("id", "__NO_FAST_BUNDLES__");
-      }
-    }
   } catch (e) {
     console.error("Failed to delete from user_bundles table:", e);
   }
@@ -753,6 +729,7 @@ export interface SupabaseSettings {
   autoApprove: boolean;
   maintenance: boolean;
   maintenanceMode: boolean;
+  fastOnlyMode: boolean;
   minWithdrawal: number;
   paystackPublicKey?: string;
 }
@@ -765,20 +742,74 @@ const DEFAULT_SETTINGS: SupabaseSettings = {
   autoApprove: true,
   maintenance: false,
   maintenanceMode: false,
+  fastOnlyMode: false,
   minWithdrawal: 10,
   paystackPublicKey: "pk_test_89f8b1554a54065b1017190634b2755f9883993e",
 };
 
-export async function fetchSupabaseSettings(): Promise<SupabaseSettings> {
-  const { data, error } = await supabase
-    .from("settings")
-    .select("*")
-    .eq("id", "global")
-    .maybeSingle();
+export async function fetchFastOnlyMode(): Promise<boolean> {
+  let cached = false;
+  try {
+    if (typeof window !== "undefined") {
+      const raw = localStorage.getItem("datahub_fast_only_mode");
+      if (raw !== null) cached = raw === "true";
+    }
+  } catch {}
 
-  if (error || !data) {
-    console.error("Error fetching settings from Supabase:", error);
-    return DEFAULT_SETTINGS;
+  try {
+    const { data, error } = await supabase
+      .from("settings")
+      .select("maintenance")
+      .eq("id", "fast_only_mode")
+      .maybeSingle();
+
+    if (!error && data) {
+      const val = Boolean(data.maintenance);
+      try {
+        localStorage.setItem("datahub_fast_only_mode", String(val));
+      } catch {}
+      return val;
+    }
+  } catch {}
+
+  return cached;
+}
+
+export async function setFastOnlyMode(enabled: boolean): Promise<boolean> {
+  try {
+    localStorage.setItem("datahub_fast_only_mode", String(enabled));
+  } catch {}
+
+  // Immediate broadcast to all open tabs and active clients
+  broadcastFastOnlyMode(enabled);
+
+  try {
+    const { error } = await supabase.from("settings").upsert({
+      id: "fast_only_mode",
+      maintenance: enabled,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error("Failed to save fast_only_mode in Supabase:", error);
+    }
+  } catch (e) {
+    console.error("Error updating fast_only_mode:", e);
+  }
+
+  return enabled;
+}
+
+export async function fetchSupabaseSettings(): Promise<SupabaseSettings> {
+  const [globalRes, fastOnlyVal] = await Promise.all([
+    supabase.from("settings").select("*").eq("id", "global").maybeSingle(),
+    fetchFastOnlyMode(),
+  ]);
+
+  const data = globalRes.data;
+
+  if (globalRes.error || !data) {
+    console.error("Error fetching settings from Supabase:", globalRes.error);
+    return { ...DEFAULT_SETTINGS, fastOnlyMode: fastOnlyVal };
   }
 
   return {
@@ -789,6 +820,7 @@ export async function fetchSupabaseSettings(): Promise<SupabaseSettings> {
     autoApprove: Boolean(data.auto_approve ?? true),
     maintenance: Boolean(data.maintenance ?? false),
     maintenanceMode: Boolean(data.maintenance ?? false),
+    fastOnlyMode: fastOnlyVal,
     minWithdrawal: Number(data.min_withdrawal ?? 10),
     paystackPublicKey: data.paystack_public_key || DEFAULT_SETTINGS.paystackPublicKey,
   };
@@ -797,6 +829,10 @@ export async function fetchSupabaseSettings(): Promise<SupabaseSettings> {
 export async function updateSupabaseSettings(
   s: Partial<SupabaseSettings>,
 ): Promise<SupabaseSettings> {
+  if (s.fastOnlyMode !== undefined) {
+    await setFastOnlyMode(s.fastOnlyMode);
+  }
+
   const payload: Record<string, unknown> = {
     id: "global",
     store_name: s.storeName,
@@ -820,6 +856,8 @@ export async function updateSupabaseSettings(
     return DEFAULT_SETTINGS;
   }
 
+  const fastOnly = s.fastOnlyMode !== undefined ? s.fastOnlyMode : await fetchFastOnlyMode();
+
   return {
     storeName: data.store_name,
     supportEmail: data.support_email,
@@ -828,6 +866,7 @@ export async function updateSupabaseSettings(
     autoApprove: Boolean(data.auto_approve),
     maintenance: Boolean(data.maintenance),
     maintenanceMode: Boolean(data.maintenance),
+    fastOnlyMode: fastOnly,
     minWithdrawal: Number(data.min_withdrawal),
     paystackPublicKey: data.paystack_public_key || DEFAULT_SETTINGS.paystackPublicKey,
   };

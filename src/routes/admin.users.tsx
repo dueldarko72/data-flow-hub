@@ -219,7 +219,7 @@ function AdminUsers() {
 
     // 3. Asynchronously perform backend deletion and custom catalog persistence
     try {
-      await deleteUserBundle(bundleUser.id, targetId, remainingFast);
+      await deleteUserBundle(bundleUser.id, targetId);
     } catch (err) {
       console.error("Failed to delete user bundle on server:", err);
       if (deletedBundle) {
