@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
@@ -13,6 +13,7 @@ import {
   Hash,
   CreditCard,
   Zap,
+  Home,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -359,6 +360,7 @@ function PaymentReceiptOverlay({
 }) {
   const [visible, setVisible] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Animate in after mount
@@ -369,6 +371,14 @@ function PaymentReceiptOverlay({
   const handleClose = () => {
     setVisible(false);
     setTimeout(onClose, 300);
+  };
+
+  const handleGoHome = () => {
+    setVisible(false);
+    setTimeout(() => {
+      onClose();
+      navigate({ to: "/" });
+    }, 200);
   };
 
   const networkColor = order.network?.toLowerCase().includes("mtn")
@@ -521,7 +531,7 @@ function PaymentReceiptOverlay({
           <div className="px-5 py-4 space-y-2.5 sm:px-8 sm:py-6 sm:space-y-3">
             <button
               onClick={onDownload}
-              className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-all active:scale-95"
+              className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-all active:scale-95 shadow-md hover:opacity-95"
               style={{
                 background: `linear-gradient(135deg, ${networkColor}aa, #6C63FF)`,
               }}
@@ -530,11 +540,18 @@ function PaymentReceiptOverlay({
               Download Receipt
             </button>
             <button
+              onClick={handleGoHome}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-gradient-to-r from-primary/20 via-primary/15 to-primary/20 py-3 text-sm font-semibold text-primary hover:bg-primary/25 active:scale-95 transition-all shadow-sm"
+            >
+              <Home className="h-4 w-4" />
+              Back to Home
+            </button>
+            <button
               onClick={handleClose}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm font-medium text-white/70 hover:bg-white/5 active:scale-95 transition-all"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-xs sm:text-sm font-medium text-white/60 hover:bg-white/5 hover:text-white/80 active:scale-95 transition-all"
             >
               View All Orders
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
 
