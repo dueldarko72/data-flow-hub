@@ -322,9 +322,13 @@ export async function upsertUserBundle(userId: string, b: Bundle): Promise<void>
   recordAudit("bundle", `User bundle updated: ${b.name} (${b.gb}GB for GHS ${b.price})`, userId);
 }
 
-export async function deleteUserBundle(userId: string, bundleId: string): Promise<void> {
+export async function deleteUserBundle(
+  userId: string,
+  bundleId: string,
+  remainingFastBundles?: Bundle[]
+): Promise<void> {
   const { deleteSupabaseUserBundle } = await import("./supabase-api");
-  await deleteSupabaseUserBundle(userId, bundleId);
+  await deleteSupabaseUserBundle(userId, bundleId, remainingFastBundles);
   recordAudit("bundle", `User bundle deleted: ${bundleId}`, userId);
 }
 

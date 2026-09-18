@@ -58,9 +58,24 @@ export async function upsertSupabaseBundle(bundle: Bundle): Promise<void> {
     console.error("Error saving bundle in Supabase:", error);
     throw error;
   }
+
+  // Broadcast to all clients and front end in real-time
+  broadcastCatalogChange({
+    userId: "all",
+    bundleId: bundle.id,
+    action: "upsert",
+    bundle,
+  });
 }
 
 export async function deleteSupabaseBundle(id: string): Promise<void> {
+  // Broadcast deletion to all clients and front end in real-time
+  broadcastCatalogChange({
+    userId: "all",
+    bundleId: id,
+    action: "delete",
+  });
+
   const { error } = await supabase.from("bundles").delete().eq("id", id);
   if (error) {
     console.error("Error deleting bundle in Supabase:", error);
@@ -91,8 +106,15 @@ export async function fetchSupabaseUserBundles(userId: string): Promise<Bundle[]
       .order("gb", { ascending: true });
 
     if (!error && data) {
-      if (data.length > 0) {
-        const userFastBundles: Bundle[] = data.map((b) => ({
+      // Check if customer explicitly has 0 fast delivery plans (tombstone)
+      const hasTombstone = data.some((b) => b.id === "__NO_FAST_BUNDLES__");
+      if (hasTombstone) {
+        return [...globalSlowBundles];
+      }
+
+      const activeCustom = data.filter((b) => b.id !== "__NO_FAST_BUNDLES__");
+      if (activeCustom.length > 0) {
+        const userFastBundles: Bundle[] = activeCustom.map((b) => ({
           id: b.id,
           network: b.network,
           name: b.name,
@@ -112,7 +134,7 @@ export async function fetchSupabaseUserBundles(userId: string): Promise<Bundle[]
         // Merge: User custom fast bundles + Global 1hr-2hr delivery bundles
         return [...userFastBundles, ...globalSlowBundles];
       } else {
-        // Explicitly cleared / no custom bundles -> remove stale localStorage so deleted bundles never resurrect
+        // Explicitly cleared / no custom bundles -> remove stale localStorage
         try {
           localStorage.removeItem(`datahub-user-bundles-${userId}`);
         } catch {}
@@ -208,17 +230,24 @@ export async function upsertSupabaseUserBundle(userId: string, bundle: Bundle): 
   }
 }
 
-export async function deleteSupabaseUserBundle(userId: string, bundleId: string): Promise<void> {
+export async function deleteSupabaseUserBundle(
+  userId: string,
+  bundleId: string,
+  remainingFastBundles?: Bundle[]
+): Promise<void> {
   // 1. Immediately update localStorage so local cache is never stale
   try {
-    const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
-    if (raw) {
-      const existing: Bundle[] = JSON.parse(raw);
-      const filtered = existing.filter((b) => b.id !== bundleId);
-      if (filtered.length > 0) {
+    if (remainingFastBundles !== undefined) {
+      localStorage.setItem(
+        `datahub-user-bundles-${userId}`,
+        JSON.stringify(remainingFastBundles)
+      );
+    } else {
+      const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
+      if (raw) {
+        const existing: Bundle[] = JSON.parse(raw);
+        const filtered = existing.filter((b) => b.id !== bundleId);
         localStorage.setItem(`datahub-user-bundles-${userId}`, JSON.stringify(filtered));
-      } else {
-        localStorage.removeItem(`datahub-user-bundles-${userId}`);
       }
     }
   } catch {}
@@ -230,9 +259,49 @@ export async function deleteSupabaseUserBundle(userId: string, bundleId: string)
     action: "delete",
   });
 
-  // 3. Delete from database table
+  // 3. Persist remaining catalog or tombstone to user_bundles table
   try {
+    // Delete the target bundle row
     await supabase.from("user_bundles").delete().eq("user_id", userId).eq("id", bundleId);
+
+    if (remainingFastBundles !== undefined) {
+      if (remainingFastBundles.length === 0) {
+        // Save tombstone so query knows this customer explicitly has 0 fast bundles!
+        await supabase.from("user_bundles").upsert({
+          id: "__NO_FAST_BUNDLES__",
+          user_id: userId,
+          network: "MTN",
+          name: "None",
+          gb: 0,
+          price: 0,
+          validity: "none",
+          popular: false,
+          group_type: "fast",
+        });
+      } else {
+        // Save all remaining fast bundles under this user ID so the customer has their own saved catalog
+        for (const b of remainingFastBundles) {
+          await supabase.from("user_bundles").upsert({
+            id: b.id,
+            user_id: userId,
+            network: b.network,
+            name: b.name,
+            gb: b.gb,
+            price: b.price,
+            validity: b.validity,
+            popular: b.popular || false,
+            description: b.description || null,
+            group_type: b.group || "fast",
+          });
+        }
+        // Remove tombstone if present
+        await supabase
+          .from("user_bundles")
+          .delete()
+          .eq("user_id", userId)
+          .eq("id", "__NO_FAST_BUNDLES__");
+      }
+    }
   } catch (e) {
     console.error("Failed to delete from user_bundles table:", e);
   }

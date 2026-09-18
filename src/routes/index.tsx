@@ -86,7 +86,7 @@ function Landing() {
     const handleCatalogChanged = (e: Event) => {
       const detail = (e as CustomEvent)?.detail;
       if (detail?.action === "delete" && detail?.bundleId) {
-        if (!detail.userId || !user || detail.userId === user.id) {
+        if (!detail.userId || detail.userId === "all" || !user || detail.userId === user.id) {
           setCatalog((prev) => prev.filter((b) => b.id !== detail.bundleId));
         }
       }
@@ -101,7 +101,7 @@ function Landing() {
         bc.onmessage = (evt) => {
           const data = evt.data;
           if (data?.action === "delete" && data?.bundleId) {
-            if (!data.userId || !user || data.userId === user.id) {
+            if (!data.userId || data.userId === "all" || !user || data.userId === user.id) {
               setCatalog((prev) => prev.filter((b) => b.id !== data.bundleId));
             }
           }
@@ -131,13 +131,17 @@ function Landing() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bundles" },
-        () => {
+        (payload) => {
+          if (payload.eventType === "DELETE" && (payload.old as any)?.id) {
+            const deletedId = (payload.old as any).id;
+            setCatalog((prev) => prev.filter((b) => b.id !== deletedId));
+          }
           bump();
         }
       )
       .on("broadcast", { event: "catalog-change" }, ({ payload }) => {
         if (payload?.action === "delete" && payload?.bundleId) {
-          if (!payload.userId || !user || payload.userId === user.id) {
+          if (!payload.userId || payload.userId === "all" || !user || payload.userId === user.id) {
             setCatalog((prev) => prev.filter((b) => b.id !== payload.bundleId));
           }
         }

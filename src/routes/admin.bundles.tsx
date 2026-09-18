@@ -15,6 +15,7 @@ import {
   Wifi,
   Radio,
   CheckCircle2,
+  Zap,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,7 @@ function AdminBundles() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [networkFilter, setNetworkFilter] = useState<string>("all");
+  const [groupFilter, setGroupFilter] = useState<"all" | "fast" | "slow">("all");
   const [loading, setLoading] = useState(false);
 
   const refreshBundles = async () => {
@@ -102,29 +104,38 @@ function AdminBundles() {
     };
   }, []);
 
-  // Filter only standard 1hr-2hr bundles (slow group) as Fast delivery is managed per-user in /admin/users
+  const fastBundles = useMemo(() => {
+    return allBundles.filter((b) => b.group !== "slow");
+  }, [allBundles]);
+
   const standardBundles = useMemo(() => {
     return allBundles.filter((b) => b.group === "slow");
   }, [allBundles]);
 
   const filtered = useMemo(() => {
-    return standardBundles.filter((b) => {
+    return allBundles.filter((b) => {
       if (networkFilter !== "all" && b.network !== networkFilter) return false;
+      if (groupFilter === "fast" && b.group === "slow") return false;
+      if (groupFilter === "slow" && b.group !== "slow") return false;
       return true;
     });
-  }, [standardBundles, networkFilter]);
+  }, [allBundles, networkFilter, groupFilter]);
 
-  const startCreate = () => {
+  const startCreate = (defaultGroup?: "fast" | "slow") => {
+    const chosenGroup = defaultGroup || (groupFilter === "slow" ? "slow" : "fast");
     setEditing({
       id: "b" + Math.random().toString(36).slice(2, 8),
       network: "MTN",
       name: "",
-      gb: 10,
-      price: 45,
-      validity: "30 days",
+      gb: chosenGroup === "fast" ? 2 : 10,
+      price: chosenGroup === "fast" ? 11 : 45,
+      validity: chosenGroup === "fast" ? "24 hours" : "30 days",
       popular: false,
-      group: "slow",
-      description: "Standard wholesale queue data (1hr – 2hr delivery)",
+      group: chosenGroup,
+      description:
+        chosenGroup === "fast"
+          ? "Fast delivery plan (lands in <30s)"
+          : "Standard wholesale queue data (1hr – 2hr delivery)",
     });
     setOpen(true);
   };
@@ -134,7 +145,6 @@ function AdminBundles() {
       ...bundle,
       id: "b" + Math.random().toString(36).slice(2, 8),
       name: `${bundle.name} (Copy)`,
-      group: "slow",
     });
     setOpen(true);
   };
@@ -146,12 +156,14 @@ function AdminBundles() {
       return;
     }
     try {
-      // Standard bundles are always saved with group = "slow"
-      await upsertBundle({ ...editing, group: "slow" });
+      const g = editing.group || "fast";
+      await upsertBundle({ ...editing, group: g });
       await refreshBundles();
       setOpen(false);
       setEditing(null);
-      toast.success("Standard (1hr-2hr) bundle saved & synced to all customer catalogs");
+      toast.success(
+        `${g === "fast" ? "Fast delivery" : "Standard (1hr-2hr)"} bundle saved & synced to all customer catalogs`
+      );
     } catch {
       toast.error("Failed to save bundle to Supabase");
     }
@@ -162,7 +174,7 @@ function AdminBundles() {
     try {
       await deleteBundle(deleteId);
       await refreshBundles();
-      toast.success("Standard bundle deleted successfully");
+      toast.success("Bundle deleted successfully from global catalog");
     } catch {
       toast.error("Failed to delete bundle");
     } finally {
@@ -177,16 +189,19 @@ function AdminBundles() {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
-              Standard (1hr – 2hr) Bundles Catalog
+              Global Bundle Catalog
             </h1>
+            <Badge variant="outline" className="border-primary/40 text-primary text-xs gap-1">
+              <Zap className="h-3 w-3 fill-primary" />
+              {fastBundles.length} Fast Plans
+            </Badge>
             <Badge variant="outline" className="border-blue-500/30 text-blue-500 text-xs gap-1">
               <Clock className="h-3 w-3" />
               {standardBundles.length} Standard Plans
             </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Configure global wholesale <strong>(standard 1hr – 2hr)</strong> data plans. All changes
-            made here automatically reflect across every customer catalog.
+            Manage global <strong>Fast Delivery</strong> and <strong>Standard (1hr – 2hr)</strong> data plans. Any changes made here automatically reflect across the storefront for all guests and customers in real time.
           </p>
         </div>
 
@@ -225,30 +240,59 @@ function AdminBundles() {
           </Button>
 
           <Button
-            onClick={startCreate}
+            onClick={() => startCreate()}
             className="gradient-gold h-9 gap-1.5 text-primary-foreground glow"
           >
             <Plus className="h-4 w-4" />
-            <span>New Standard Bundle</span>
+            <span>New Data Plan</span>
           </Button>
         </div>
       </div>
 
       {/* Global Sync Notification Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs">
         <div className="flex items-start sm:items-center gap-2.5">
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-500/10 text-blue-500">
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
             <CheckCircle2 className="h-4 w-4" />
           </div>
           <div>
-            <span className="font-semibold text-blue-500">
+            <span className="font-semibold text-primary">
               Universal Realtime Auto-Sync Active:
             </span>{" "}
-            Any price, data volume, or validity edited on these{" "}
-            <strong>Standard (1hr – 2hr)</strong> packages instantly updates for all customers on
-            their storefronts and under their Users profile dialog.
+            Any price, data volume, or plan added, edited, or deleted on both{" "}
+            <strong>Fast Delivery</strong> and <strong>Standard (1hr – 2hr)</strong> packages instantly reflects across the customer storefront and guest catalog in real time.
           </div>
         </div>
+      </div>
+
+      {/* Group tabs: All / Fast / Standard */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/60 pb-3">
+        <Button
+          size="sm"
+          variant={groupFilter === "all" ? "default" : "outline"}
+          onClick={() => setGroupFilter("all")}
+          className="h-8 text-xs gap-1.5"
+        >
+          All Plans ({allBundles.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={groupFilter === "fast" ? "default" : "outline"}
+          onClick={() => setGroupFilter("fast")}
+          className={`h-8 text-xs gap-1.5 ${groupFilter === "fast" ? "gradient-gold text-primary-foreground" : "text-primary border-primary/40"}`}
+        >
+          <Zap className="h-3.5 w-3.5 fill-current" />
+          Fast Delivery ({fastBundles.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={groupFilter === "slow" ? "default" : "outline"}
+          onClick={() => setGroupFilter("slow")}
+          className={`h-8 text-xs gap-1.5 ${groupFilter === "slow" ? "bg-blue-600 text-white" : "text-blue-500 border-blue-500/40"}`}
+        >
+          <Clock className="h-3.5 w-3.5" />
+          1hr – 2hr Delivery ({standardBundles.length})
+        </Button>
       </div>
 
       {/* Filter and Network Selector Bar */}
@@ -260,7 +304,7 @@ function AdminBundles() {
             onClick={() => setNetworkFilter("all")}
             className="h-8 text-xs"
           >
-            All Networks ({standardBundles.length})
+            All Networks
           </Button>
           <Button
             size="sm"
@@ -294,7 +338,7 @@ function AdminBundles() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.length === 0 ? (
             <div className="col-span-full py-16 text-center text-sm text-muted-foreground">
-              No Standard (1hr – 2hr) bundles found for the selected filter.
+              No data plans found for the selected filter.
             </div>
           ) : (
             filtered.map((bundle) => (
@@ -305,8 +349,18 @@ function AdminBundles() {
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-500/10 text-blue-500">
-                        <Wifi className="h-5 w-5" />
+                      <div
+                        className={`grid h-9 w-9 place-items-center rounded-xl ${
+                          bundle.group === "fast"
+                            ? "bg-primary/15 text-primary"
+                            : "bg-blue-500/15 text-blue-500"
+                        }`}
+                      >
+                        {bundle.group === "fast" ? (
+                          <Zap className="h-5 w-5 fill-primary" />
+                        ) : (
+                          <Wifi className="h-5 w-5" />
+                        )}
                       </div>
                       <div>
                         <div className="font-semibold text-sm line-clamp-1">{bundle.name}</div>
@@ -320,12 +374,21 @@ function AdminBundles() {
                           <Star className="mr-1 h-2.5 w-2.5" /> Popular
                         </Badge>
                       )}
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] gap-1 border-blue-500/30 text-blue-500"
-                      >
-                        <Clock className="h-2.5 w-2.5" /> 1-2hr
-                      </Badge>
+                      {bundle.group === "fast" ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 border-primary/40 text-primary bg-primary/5"
+                        >
+                          <Zap className="h-2.5 w-2.5 fill-primary" /> Fast
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 border-blue-500/30 text-blue-500"
+                        >
+                          <Clock className="h-2.5 w-2.5" /> 1-2hr
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
@@ -419,7 +482,7 @@ function AdminBundles() {
                     colSpan={8}
                     className="py-16 text-center text-sm text-muted-foreground"
                   >
-                    No Standard (1hr – 2hr) bundles found for the selected filter.
+                    No data plans found for the selected filter.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -442,12 +505,21 @@ function AdminBundles() {
                       {bundle.validity}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] gap-1 border-blue-500/30 text-blue-500"
-                      >
-                        <Clock className="h-3 w-3" /> Standard (1-2hr)
-                      </Badge>
+                      {bundle.group === "fast" ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 border-primary/40 text-primary bg-primary/5"
+                        >
+                          <Zap className="h-3 w-3 fill-primary" /> Fast (&lt;30s)
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] gap-1 border-blue-500/30 text-blue-500"
+                        >
+                          <Clock className="h-3 w-3" /> Standard (1-2hr)
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       {bundle.popular ? (
@@ -500,14 +572,14 @@ function AdminBundles() {
         </Card>
       )}
 
-      {/* Add / Edit Standard Bundle Dialog */}
+      {/* Add / Edit Bundle Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="glass border-0 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {editing?.id && allBundles.some((b) => b.id === editing.id)
-                ? "Edit Standard (1hr-2hr) Bundle"
-                : "Create Standard (1hr-2hr) Bundle"}
+                ? `Edit ${editing.group === "fast" ? "Fast Delivery" : "Standard"} Bundle`
+                : "Create Data Plan"}
             </DialogTitle>
             <DialogDescription className="text-xs">
               Configure data plan parameters. Changes immediately update across all customer
@@ -520,13 +592,34 @@ function AdminBundles() {
               <div className="space-y-1.5">
                 <Label className="text-xs">Plan Title / Name</Label>
                 <Input
-                  placeholder="e.g. Monthly Standard 20GB"
+                  placeholder="e.g. Flash 2GB or Monthly 20GB"
                   value={editing.name}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Delivery Speed</Label>
+                  <Select
+                    value={editing.group || "fast"}
+                    onValueChange={(v) =>
+                      setEditing({
+                        ...editing,
+                        group: v as "fast" | "slow",
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fast">⚡ Fast Delivery (&lt;30s)</SelectItem>
+                      <SelectItem value="slow">⏱️ 1hr – 2hr Delivery</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-1.5">
                   <Label className="text-xs">Network</Label>
                   <Select
@@ -545,7 +638,9 @@ function AdminBundles() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Data Volume (GB)</Label>
                   <Input
@@ -556,9 +651,7 @@ function AdminBundles() {
                     onChange={(e) => setEditing({ ...editing, gb: Number(e.target.value) })}
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Wholesale Price (GHS)</Label>
                   <Input
@@ -569,24 +662,26 @@ function AdminBundles() {
                     onChange={(e) => setEditing({ ...editing, price: Number(e.target.value) })}
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Validity Period</Label>
                   <Input
-                    placeholder="e.g. 30 days, 60 days"
+                    placeholder="e.g. 24 hours, 7 days, 30 days"
                     value={editing.validity}
                     onChange={(e) => setEditing({ ...editing, validity: e.target.value })}
                   />
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs">Description (Optional)</Label>
-                <Input
-                  placeholder="e.g. Heavy streaming and remote work data plan"
-                  value={editing.description || ""}
-                  onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Description (Optional)</Label>
+                  <Input
+                    placeholder="e.g. Instant delivery within 30s"
+                    value={editing.description || ""}
+                    onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div className="flex items-center justify-between rounded-xl border border-border/50 bg-card/40 p-3">
@@ -609,7 +704,7 @@ function AdminBundles() {
               Cancel
             </Button>
             <Button onClick={save} className="gradient-gold text-primary-foreground">
-              Save Standard Bundle
+              Save Bundle
             </Button>
           </DialogFooter>
         </DialogContent>

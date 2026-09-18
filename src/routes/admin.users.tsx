@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -190,9 +190,11 @@ function AdminUsers() {
   const executeDeleteBundle = async (targetId: string) => {
     if (!bundleUser) return;
     const deletedBundle = userBundles.find((b) => b.id === targetId);
+    const updatedBundles = userBundles.filter((b) => b.id !== targetId);
+    const remainingFast = updatedBundles.filter((b) => b.group !== "slow");
 
     // 1. Instantly remove from state with zero delay (0ms)
-    setUserBundles((prev) => prev.filter((b) => b.id !== targetId));
+    setUserBundles(updatedBundles);
     setDeleteBundleId(null);
 
     // 2. Immediate feedback toast with instant Undo action
@@ -215,9 +217,9 @@ function AdminUsers() {
         : undefined,
     });
 
-    // 3. Asynchronously perform backend deletion
+    // 3. Asynchronously perform backend deletion and custom catalog persistence
     try {
-      await deleteUserBundle(bundleUser.id, targetId);
+      await deleteUserBundle(bundleUser.id, targetId, remainingFast);
     } catch (err) {
       console.error("Failed to delete user bundle on server:", err);
       if (deletedBundle) {
@@ -539,7 +541,12 @@ function AdminUsers() {
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
                     Customize rates, GB, validity, or create custom plans exclusively for{" "}
-                    {bundleUser?.name}.
+                    <span className="font-semibold text-foreground">{bundleUser?.name}</span>.
+                    {" "}(To edit or delete fast bundles globally for all customers/guests, manage them in the{" "}
+                    <Link to="/admin/bundles" className="text-primary underline font-medium hover:opacity-80">
+                      Global Catalog
+                    </Link>
+                    )
                   </div>
                 </div>
 
