@@ -17,18 +17,88 @@ export interface SupabaseProfile {
 // BUNDLES (Catalog)
 // ----------------------------------------------------
 
-export async function fetchSupabaseBundles(): Promise<Bundle[]> {
-  const { data, error } = await supabase
-    .from("bundles")
-    .select("*")
-    .order("gb", { ascending: true });
+export async function fetchDeletedBundleIds(): Promise<string[]> {
+  let cached: string[] = [];
+  try {
+    if (typeof window !== "undefined") {
+      const raw = localStorage.getItem("datahub_deleted_bundle_ids");
+      if (raw) cached = JSON.parse(raw);
+    }
+  } catch {}
 
-  if (error) {
-    console.error("Error fetching bundles from Supabase:", error);
+  try {
+    const { data } = await supabase
+      .from("settings")
+      .select("store_name")
+      .eq("id", "deleted_bundles")
+      .maybeSingle();
+
+    if (data?.store_name) {
+      const parsed: string[] = JSON.parse(data.store_name);
+      if (Array.isArray(parsed)) {
+        try {
+          localStorage.setItem("datahub_deleted_bundle_ids", JSON.stringify(parsed));
+        } catch {}
+        return parsed;
+      }
+    }
+  } catch {}
+
+  return cached;
+}
+
+export async function markBundleAsDeleted(bundleId: string): Promise<void> {
+  try {
+    const existing = await fetchDeletedBundleIds();
+    if (!existing.includes(bundleId)) {
+      const updated = [...existing, bundleId];
+      try {
+        localStorage.setItem("datahub_deleted_bundle_ids", JSON.stringify(updated));
+      } catch {}
+
+      await supabase.from("settings").upsert({
+        id: "deleted_bundles",
+        store_name: JSON.stringify(updated),
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } catch (e) {
+    console.error("Failed to mark bundle as deleted:", e);
+  }
+}
+
+export async function unmarkBundleAsDeleted(bundleId: string): Promise<void> {
+  try {
+    const existing = await fetchDeletedBundleIds();
+    if (existing.includes(bundleId)) {
+      const updated = existing.filter((id) => id !== bundleId);
+      try {
+        localStorage.setItem("datahub_deleted_bundle_ids", JSON.stringify(updated));
+      } catch {}
+
+      await supabase.from("settings").upsert({
+        id: "deleted_bundles",
+        store_name: JSON.stringify(updated),
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } catch (e) {
+    console.error("Failed to unmark bundle as deleted:", e);
+  }
+}
+
+export async function fetchSupabaseBundles(): Promise<Bundle[]> {
+  const [bundlesRes, deletedIds] = await Promise.all([
+    supabase.from("bundles").select("*").order("gb", { ascending: true }),
+    fetchDeletedBundleIds(),
+  ]);
+
+  if (bundlesRes.error) {
+    console.error("Error fetching bundles from Supabase:", bundlesRes.error);
     return [];
   }
 
-  return (data || []).map((b) => ({
+  const list: Bundle[] = (bundlesRes.data || []).map((b) => ({
     id: b.id,
     network: b.network,
     name: b.name,
@@ -39,9 +109,14 @@ export async function fetchSupabaseBundles(): Promise<Bundle[]> {
     description: b.description || undefined,
     group: b.group_type as "fast" | "slow",
   }));
+
+  return list.filter((b) => !deletedIds.includes(b.id));
 }
 
 export async function upsertSupabaseBundle(bundle: Bundle): Promise<void> {
+  // If previously deleted, unmark it
+  await unmarkBundleAsDeleted(bundle.id);
+
   const { error } = await supabase.from("bundles").upsert({
     id: bundle.id,
     network: bundle.network,
@@ -69,17 +144,28 @@ export async function upsertSupabaseBundle(bundle: Bundle): Promise<void> {
 }
 
 export async function deleteSupabaseBundle(id: string): Promise<void> {
-  // Broadcast deletion to all clients and front end in real-time
+  // 1. Mark as globally deleted
+  await markBundleAsDeleted(id);
+
+  // 2. Broadcast deletion to all clients and front end in real-time
   broadcastCatalogChange({
     userId: "all",
     bundleId: id,
     action: "delete",
   });
 
-  const { error } = await supabase.from("bundles").delete().eq("id", id);
-  if (error) {
-    console.error("Error deleting bundle in Supabase:", error);
-    throw error;
+  // 3. Delete from bundles table
+  try {
+    await supabase.from("bundles").delete().eq("id", id);
+  } catch (e) {
+    console.error("Error deleting bundle in Supabase:", e);
+  }
+
+  // 4. Also delete from all user_bundles so it's gone for every user
+  try {
+    await supabase.from("user_bundles").delete().eq("id", id);
+  } catch (e) {
+    console.error("Error deleting from user_bundles table:", e);
   }
 }
 
@@ -88,13 +174,15 @@ export async function deleteSupabaseBundle(id: string): Promise<void> {
 // ----------------------------------------------------
 
 export async function fetchSupabaseUserBundles(userId: string): Promise<Bundle[]> {
-  // 1. Fetch latest global slow (1hr - 2hr delivery) bundles from Supabase
-  const globalBundles = await fetchSupabaseBundles();
-  const globalSlowBundles = globalBundles.filter((b) => b.group === "slow");
-  const globalFastBundles = globalBundles.filter((b) => b.group !== "slow");
+  const [globalBundles, deletedIds] = await Promise.all([
+    fetchSupabaseBundles(),
+    fetchDeletedBundleIds(),
+  ]);
+  const globalSlowBundles = globalBundles.filter((b) => b.group === "slow" && !deletedIds.includes(b.id));
+  const globalFastBundles = globalBundles.filter((b) => b.group !== "slow" && !deletedIds.includes(b.id));
 
   if (!userId || userId === "guest") {
-    return globalBundles;
+    return globalBundles.filter((b) => !deletedIds.includes(b.id));
   }
 
   try {
@@ -107,17 +195,19 @@ export async function fetchSupabaseUserBundles(userId: string): Promise<Bundle[]
 
     if (!error && data) {
       if (data.length > 0) {
-        const userFastBundles: Bundle[] = data.map((b) => ({
-          id: b.id,
-          network: b.network,
-          name: b.name,
-          gb: Number(b.gb),
-          price: Number(b.price),
-          validity: b.validity,
-          popular: Boolean(b.popular),
-          description: b.description || undefined,
-          group: (b.group_type || "fast") as "fast" | "slow",
-        }));
+        const userFastBundles: Bundle[] = data
+          .map((b) => ({
+            id: b.id,
+            network: b.network,
+            name: b.name,
+            gb: Number(b.gb),
+            price: Number(b.price),
+            validity: b.validity,
+            popular: Boolean(b.popular),
+            description: b.description || undefined,
+            group: (b.group_type || "fast") as "fast" | "slow",
+          }))
+          .filter((b) => !deletedIds.includes(b.id));
 
         // Cache into localStorage so subsequent sync/loads are instantaneous
         try {
@@ -142,14 +232,14 @@ export async function fetchSupabaseUserBundles(userId: string): Promise<Bundle[]
     const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
     if (raw) {
       const parsed: Bundle[] = JSON.parse(raw);
-      const userFast = parsed.filter((b) => b.group !== "slow");
+      const userFast = parsed.filter((b) => b.group !== "slow" && !deletedIds.includes(b.id));
       if (userFast.length > 0) {
         return [...userFast, ...globalSlowBundles];
       }
     }
   } catch {}
 
-  // 4. Default: all global bundles
+  // 4. Default: all global bundles (filtered to exclude any deleted plans)
   return [...globalFastBundles, ...globalSlowBundles];
 }
 
@@ -217,6 +307,9 @@ export function broadcastFastOnlyMode(enabled: boolean): void {
 }
 
 export async function upsertSupabaseUserBundle(userId: string, bundle: Bundle): Promise<void> {
+  // If previously deleted, unmark it
+  await unmarkBundleAsDeleted(bundle.id);
+
   // Immediately update localStorage
   try {
     const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
@@ -254,7 +347,10 @@ export async function upsertSupabaseUserBundle(userId: string, bundle: Bundle): 
 }
 
 export async function deleteSupabaseUserBundle(userId: string, bundleId: string): Promise<void> {
-  // 1. Immediately update localStorage so local cache is never stale
+  // 1. Mark as globally deleted so ANY user that signs in or logs in never sees it
+  await markBundleAsDeleted(bundleId);
+
+  // 2. Immediately update localStorage so local cache is never stale
   try {
     const raw = localStorage.getItem(`datahub-user-bundles-${userId}`);
     if (raw) {
@@ -268,18 +364,25 @@ export async function deleteSupabaseUserBundle(userId: string, bundleId: string)
     }
   } catch {}
 
-  // 2. Instantly notify all channels (current window, other tabs, other devices)
+  // 3. Instantly notify all channels and devices (broadcast with userId: "all")
   broadcastCatalogChange({
-    userId,
+    userId: "all",
     bundleId,
     action: "delete",
   });
 
-  // 3. Delete from database table
+  // 4. Delete from user_bundles table for this user and any others
   try {
-    await supabase.from("user_bundles").delete().eq("user_id", userId).eq("id", bundleId);
+    await supabase.from("user_bundles").delete().eq("id", bundleId);
   } catch (e) {
     console.error("Failed to delete from user_bundles table:", e);
+  }
+
+  // 5. Also delete from global bundles table so it is completely removed from catalog
+  try {
+    await supabase.from("bundles").delete().eq("id", bundleId);
+  } catch (e) {
+    console.error("Failed to delete from bundles table:", e);
   }
 }
 

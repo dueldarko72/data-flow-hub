@@ -73,8 +73,21 @@ function Landing() {
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [submitting, setSubmitting] = useState(false);
   const [activeBar, setActiveBar] = useState<null | "fast" | "slow">(null);
-  const [pendingBar, setPendingBar] = useState<null | "fast" | "slow">(null);
-  const [catalog, setCatalog] = useState<Bundle[]>(DEFAULT_USER_CATALOG);
+  const getInitialCatalog = (): Bundle[] => {
+    if (typeof window === "undefined") return DEFAULT_USER_CATALOG;
+    try {
+      const raw = localStorage.getItem("datahub_deleted_bundle_ids");
+      if (raw) {
+        const deletedIds: string[] = JSON.parse(raw);
+        if (Array.isArray(deletedIds) && deletedIds.length > 0) {
+          return DEFAULT_USER_CATALOG.filter((b) => !deletedIds.includes(b.id));
+        }
+      }
+    } catch {}
+    return DEFAULT_USER_CATALOG;
+  };
+
+  const [catalog, setCatalog] = useState<Bundle[]>(getInitialCatalog);
   const [slowEnabled, setSlowEnabled] = useState(true);
   const [fastOnlyMode, setFastOnlyMode] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
