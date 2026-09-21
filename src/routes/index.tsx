@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Zap, ShieldCheck, Clock, Menu, X, Sun, Moon, Wifi, Receipt } from "lucide-react";
+import { Zap, ShieldCheck, Clock, Menu, X, Sun, Moon, Wifi, Receipt, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -65,7 +65,7 @@ const NAV_LINKS = [
 function Landing() {
   const [menu, setMenu] = useState(false);
   const { theme, toggle } = useTheme();
-  const { user, signInWithPhone, registerQuick } = useAuth();
+  const { user, signInWithPhone, registerQuick, signOut } = useAuth();
   const navigate = useNavigate();
   const [authOpen, setAuthOpen] = useState(false);
   const [mode, setMode] = useState<"signup" | "login">("login");
@@ -73,6 +73,7 @@ function Landing() {
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [submitting, setSubmitting] = useState(false);
   const [activeBar, setActiveBar] = useState<null | "fast" | "slow">(null);
+  const [pendingBar, setPendingBar] = useState<null | "fast" | "slow">(null);
   const getInitialCatalog = (): Bundle[] => {
     if (typeof window === "undefined") return DEFAULT_USER_CATALOG;
     try {
@@ -263,6 +264,15 @@ function Landing() {
     setAuthOpen(true);
   };
 
+  const handleLogout = async () => {
+    setMenu(false);
+    setActiveBar(null);
+    setSelectedBundle(null);
+    setPendingBar(null);
+    await signOut();
+    toast.success("Logged out successfully");
+  };
+
   const handleBarTap = (bar: "fast" | "slow") => {
     if (bar === "slow") {
       // 1hr – 2hr delivery is open to everyone — no sign-in required.
@@ -372,10 +382,41 @@ function Landing() {
             <div className="glass mt-2 rounded-2xl p-4">
               <div className="flex flex-col gap-3">
                 {NAV_LINKS.map((l) => (
-                  <a key={l.href} href={l.href} onClick={() => setMenu(false)} className="text-sm">
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setMenu(false)}
+                    className="text-sm transition hover:text-primary"
+                  >
                     {l.label}
                   </a>
                 ))}
+                <div className="my-1 border-t border-border/50" />
+                {user ? (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 text-left text-sm font-semibold text-destructive transition hover:opacity-80"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Log out</span>
+                    {user.name && (
+                      <span className="text-xs font-normal text-muted-foreground">({user.name})</span>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenu(false);
+                      openAuth("login");
+                    }}
+                    className="flex items-center gap-2 text-left text-sm font-semibold text-primary transition hover:underline"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    <span>Log in</span>
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -519,7 +560,15 @@ function Landing() {
       </section>
 
       {/* Auth dialog */}
-      <Dialog open={authOpen} onOpenChange={setAuthOpen}>
+      <Dialog
+        open={authOpen}
+        onOpenChange={(open) => {
+          setAuthOpen(open);
+          if (!open) {
+            setPendingBar(null);
+          }
+        }}
+      >
         <DialogContent className="glass border-0 sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -528,7 +577,7 @@ function Landing() {
             <DialogDescription>
               {selectedBundle
                 ? `${selectedBundle.gb}GB • ${formatGHS(selectedBundle.price)} • ${selectedBundle.validity}`
-                : "Continue to see the bundles allocated to you."}
+                : "Log in or sign in to continue."}
             </DialogDescription>
           </DialogHeader>
 
